@@ -74,8 +74,14 @@ public class StreamSessionManager {
         captureThread.start();
 
         // 인코더 및 전송 스레드 시작
-        Encoder encoder = new Encoder(frameQueue, clientIp, port, 
-        		serverScreenSize.width, serverScreenSize.height, fps, bitrate);
+        Encoder encoder = new Encoder(
+        		frameQueue, 
+        		clientIp, 
+        		port, 
+        		width, 	// 인코딩 목표 너비
+        		height, // 인코딩 목표 높이
+        		fps, 
+        		bitrate);
         
         
         // ✅ Android에서 연결 전에 변경 가능하도록 setter 사용
