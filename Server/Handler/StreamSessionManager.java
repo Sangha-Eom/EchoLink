@@ -20,24 +20,20 @@ public class StreamSessionManager {
     private final int port;
     private final int fps;
     private final int bitrate;
-    private final int width;	// 스트리밍 가로 길이
-    private final int height;	// 스트리밍 세로 길이
-	
-	// 서버의 화면 크기
-	private final Dimension screenSize;
-	
-	// 픽셀 포맷
-	private final int pixelFormat;
+    private final int width;	// 스트리밍 요청 가로 길이
+    private final int height;	// 스트리밍 요청 세로 길이
+	private final Dimension serverScreenSize;	// 서버의 실제 화면 크기
+	private final int pixelFormat;	// 픽셀 포맷(향후 확장용)
 	
 	/**
 	 * 생성자
-	 * 스트리밍에 필요한 설정값 지정
-	 * @param clientIp
-	 * @param fps
-	 * @param bitrate
-	 * @param width
-	 * @param height
-	 * @param port
+	 * 스트리밍에 필요한 설정값을 외부(ClientHandler)로 부터 받아 적용
+	 * @param clientIp 	클라이언트 IP 주소
+	 * @param fps		프레임
+	 * @param bitrate	비트레이트
+	 * @param width		요청 해상도 가로
+	 * @param height	요청 해상도 세로
+	 * @param port		클라이언트 수신 포트(UDP)
 	 */
 	public StreamSessionManager(String clientIp, int fps, int bitrate, 
 			int width, int height, int port) {
@@ -49,7 +45,8 @@ public class StreamSessionManager {
         this.height = height;
         this.port = port;
         
-        screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        // 서버 화면 크기 내부적 초기화
+        serverScreenSize = Toolkit.getDefaultToolkit().getScreenSize();
         pixelFormat = 0;	// 0: 기본, 필요 시 avutil.AV_PIX_FMT_YUV420P 등 지정
 	}
 
@@ -72,13 +69,13 @@ public class StreamSessionManager {
         BlockingQueue<BufferedImage> frameQueue = new LinkedBlockingQueue<>(30);
 
         // 화면 캡처 스레드 시작
-        ScreenCapture capture = new ScreenCapture(frameQueue, fps);
+        ScreenCapture capture = new ScreenCapture(frameQueue, fps, serverScreenSize);
         Thread captureThread = new Thread(capture);
         captureThread.start();
 
         // 인코더 및 전송 스레드 시작
         Encoder encoder = new Encoder(frameQueue, clientIp, port, 
-        		screenSize.width, screenSize.height, fps, bitrate);
+        		serverScreenSize.width, serverScreenSize.height, fps, bitrate);
         
         
         // ✅ Android에서 연결 전에 변경 가능하도록 setter 사용
