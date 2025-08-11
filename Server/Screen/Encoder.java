@@ -36,20 +36,20 @@ public class Encoder implements Runnable {
      * @param port			UDP 전송 포트
      * @param width			가로
      * @param height		세로
-     * @param frameRate		프레임
-     * @param videoBitrate 비트레이트
+     * @param fps		프레임
+     * @param bitrate 비트레이트
      */
     public Encoder(BlockingQueue<BufferedImage> frameQueue,
                          String clientIp, int port,
-                         int width, int height, int frameRate, int videoBitrate) {
+                         int width, int height, int fps, int bitrate) {
     	
         this.frameQueue = frameQueue;
         this.clientIp = clientIp;
         this.port = port;
         this.width = width;
         this.height = height;
-        this.frameRate = frameRate;
-        this.videoBitrate = videoBitrate;
+        this.frameRate = fps;
+        this.videoBitrate = bitrate;
         
         this.pixelFormat = avutil.AV_PIX_FMT_YUV420P;   // 기본값
     }
