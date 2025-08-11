@@ -1,26 +1,33 @@
 package Server;
 
+import java.awt.AWTException;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
-
 import org.json.JSONObject;
 
 /**
- * 클라이언트로 받은 설정값 적용
- * 이후 스트리밍 시작
+ * 클라이언트로 받은 설정값 적용 및 스트리밍 시작
  * @author ESH
  */
 public class ClientHandler implements Runnable {
     
-    private Socket clientSocket;
-    private StreamSessionManager streamManager;
-    private InputEventReceiver inputReceiver;
+    private final Socket clientSocket;
+    private final StreamSessionManager streamManager;	// StreamSessionManager 인스턴스
+    private final InputEventReceiver inputReceiver;		// InputEventReceiver 인스턴스
+    private final AuthManager authManager;				// AuthManager 인스턴스
     
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
+		this.streamManager = new StreamSessionManager(null, 0, 0, 0, 0, 0);
+		try {
+			this.inputReceiver = new InputEventReceiver(socket);
+		} catch (AWTException e) {
+			e.printStackTrace();
+		}
+        this.authManager = new AuthManager();	// Handler마다 독립적인 인스턴스 생성
     }
 
     @Override
