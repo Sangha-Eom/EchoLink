@@ -11,25 +11,22 @@ import java.util.concurrent.BlockingQueue;
  */
 public class ScreenCapture implements Runnable {
 
-    private final BlockingQueue<BufferedImage> frameQueue;	// 프레임 공유용 버퍼 + 쓰레드 블로킹 => Endcoder에게 넘김
-    private final Rectangle captureArea;					// 캡처한 화면
-    private volatile boolean running = true;				// 실행
+    private final BlockingQueue<BufferedImage> frameQueue;	// 프레임 공유용 큐 + 쓰레드 블로킹 => Endcoder에게 넘김
+    private final Rectangle captureArea;					// 캡처할 화면 영역
+    private volatile boolean running = true;				// 쓰레드 실행 상태
 
-    private final int frameRate;							// 프레임
     private final long frameIntervalMillis;					// 촬영 간격
     
     /**
      * 생성자
-     * @param frameQueue 프레임 공유용 버퍼
+     * @param frameQueue 프레임 공유용 큐
      * @param frameRate 프레임
      */
-    public ScreenCapture(BlockingQueue<BufferedImage> frameQueue, int frameRate) {
+    public ScreenCapture(BlockingQueue<BufferedImage> frameQueue, int fps, Dimension captureSize) {
         this.frameQueue = frameQueue;
-        this.frameRate = frameRate;
-        this.frameIntervalMillis = 1000 / frameRate;
+        this.frameIntervalMillis = 1000/fps;
 
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();	// 모니터 해상도
-        this.captureArea = new Rectangle(screenSize);	// 모니터 사이즈(해상도)만큼 사진 캡처
+        this.captureArea = new Rectangle(captureSize);	// 모니터 사이즈(해상도)만큼 사진 캡처
     }
 
     @Override
