@@ -11,46 +11,86 @@ import java.util.concurrent.BlockingQueue;
  */
 public class ScreenCapture implements Runnable {
 
-    private final BlockingQueue<BufferedImage> frameQueue;	// 프레임 공유용 큐 + 쓰레드 블로킹 => Endcoder에게 넘김
-    private final Rectangle captureArea;					// 캡처할 화면 영역
-    private volatile boolean running = true;				// 쓰레드 실행 상태
+	private final BlockingQueue<BufferedImage> frameQueue;	// 프레임 공유용 큐 + 쓰레드 블로킹 => Endcoder에게 넘김
+	private final Rectangle captureArea;					// 캡처할 화면 영역
+	private volatile boolean running = true;				// 쓰레드 실행 상태
 
-    private final long frameIntervalMillis;					// 촬영 간격
-    
-    /**
-     * 생성자
-     * @param frameQueue 프레임 공유용 큐
-     * @param frameRate 프레임
-     */
-    public ScreenCapture(BlockingQueue<BufferedImage> frameQueue, int fps, Dimension captureSize) {
-        this.frameQueue = frameQueue;
-        this.frameIntervalMillis = 1000/fps;
+	private final long frameIntervalMillis;					// 촬영 간격
 
-        this.captureArea = new Rectangle(captureSize);	// 모니터 사이즈(해상도)만큼 사진 캡처
-    }
+	/**
+	 * 생성자
+	 * @param frameQueue 프레임 공유용 큐
+	 * @param frameRate 프레임
+	 */
+	public ScreenCapture(BlockingQueue<BufferedImage> frameQueue, int fps, Dimension captureSize) {
+		this.frameQueue = frameQueue;
+		this.frameIntervalMillis = 1000/fps;
 
-    @Override
-    public void run() {
-        try {
-            Robot robot = new Robot();
-            while (running) {
-                long startTime = System.currentTimeMillis();
+		this.captureArea = new Rectangle(captureSize);	// 모니터 사이즈(해상도)만큼 사진 캡처
+	}
 
-                BufferedImage screenshot = robot.createScreenCapture(captureArea);
-                frameQueue.put(screenshot);  // 소비자에게 전달
+	@Override
+	public void run() {
+		Robot robot;
+		try {
+			robot = new Robot();
 
-                long elapsed = System.currentTimeMillis() - startTime;
-                long sleepTime = frameIntervalMillis - elapsed;
-                if (sleepTime > 0) {
-                    Thread.sleep(sleepTime);
-                }
-            }
-        } catch (Exception e) {
+		} catch (AWTException e) {
+            System.err.println("Robot 객체 생성에 실패했습니다. GUI 환경이 아닐 수 있습니다.");
             e.printStackTrace();
-        }
-    }
+            return; // run 메소드 종료
+		}
 
-    public void stop() {
-        running = false;
-    }
+		/*
+		 * 화면 캡처
+		 */
+		while (running) {
+			long startTime = System.currentTimeMillis();
+
+			try {
+				BufferedImage screenshot = robot.createScreenCapture(captureArea);
+				frameQueue.put(screenshot);  // 소비자에게 전달 (큐에 프레임 추가)
+			}
+			catch (InterruptedException e) {
+				running = false;
+				Thread.currentThread().interrupt(); 	// 스레드 중단 상태를 다시 설정
+				System.out.println("화면 캡처 스레드가 중단되었습니다.");
+				break;
+			}
+			catch (Exception e) {
+				System.err.println("화면 캡처 중 예상치 못한 오류 발생: " + e.getMessage());
+				// 오류 발생 시 잠시 대기 후 계속 시도
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException ie) {
+					running = false;
+					Thread.currentThread().interrupt();
+				}
+			}
+
+
+			/*
+			 * 지연 시간 조정
+			 */
+			long elapsed = System.currentTimeMillis() - startTime;
+			long sleepTime = frameIntervalMillis - elapsed;
+			if (sleepTime > 0) {
+				try {
+					Thread.sleep(sleepTime);
+				} catch (InterruptedException e) {
+					running = false;
+					Thread.currentThread().interrupt();
+				}
+			}
+
+		}
+
+	}
+
+	/**
+	 * 외부에서 캡처 쓰레드 중지
+	 */
+	public void stop() {
+		running = false;
+	}
 }
