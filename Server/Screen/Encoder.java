@@ -94,21 +94,6 @@ public class Encoder implements Runnable {
 
 	}
 
-	/** 
-	 * 비트레이트 변경 (bps 단위) 
-	 * 재시작 후 반영
-	 */
-	public void setVideoBitrate(int videoBitrate) {
-		this.videoBitrate = videoBitrate;
-	}
-
-	/** 
-	 * 픽셀 포맷 변경 (avutil.AV_PIX_FMT_XXX)
-	 * 재시작 후 반영 
-	 */
-	public void setPixelFormat(int pixelFormat) {
-		this.pixelFormat = pixelFormat;
-	}
 
 	/** 
 	 * 인코더 종료
