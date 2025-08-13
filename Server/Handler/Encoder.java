@@ -1,23 +1,31 @@
 package Server;
 
-import org.bytedeco.javacv.FFmpegFrameRecorder;
-import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.ffmpeg.global.avcodec;
+import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.Frame;
-import org.bytedeco.ffmpeg.global.avutil;
-
+import org.bytedeco.javacv.Java2DFrameConverter;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
 
 /**
- * 
- * 인코딩: BufferedImage -> H.264
- * 이후 UDP 포트로 전송
+ * 영상, 음성 프레임을 각각의 큐에서 받아 인코딩
+ * 영상: BufferedImage -> H.264
+ * 음성: Frame -> AAC
+ * 이후 하나의 스트림으로 합쳐(Muxing) 클라이언트에게 UDP 포트로 전송.
  * @author ESH
  */
 public class Encoder implements Runnable {
 
-	private final BlockingQueue<BufferedImage> frameQueue;	// 프레임 공유용 버퍼
+	private final BlockingQueue<BufferedImage> videoFrameQueue;	// 영상 공유용 큐
+	private final BlockingQueue<Frame> audioFrameQueue;			// 오디오 공유용 큐
+	
+	/*
+	 * 영상용
+	 */
 	private final String clientIp;							// 클라이언트
 	private final int port;									// UDP 포트
 	private final int width;								// 화면 크기(가로)
@@ -25,9 +33,11 @@ public class Encoder implements Runnable {
 	private final int frameRate;							// 프레임
 	private int videoBitrate; 								// 비트레이트(영상 품질)
 	private int pixelFormat;								// 픽셀 포맷
-
-
-	private volatile boolean running = true;
+	
+	
+	private final ExecutorService executor = Executors.newFixedThreadPool(2); // 영상/음성 처리용 스레드 풀
+	
+	private volatile boolean running = true;	// 종료
 
 	/**
 	 * 생성자
@@ -39,11 +49,12 @@ public class Encoder implements Runnable {
 	 * @param fps			프레임
 	 * @param bitrate		비트레이트
 	 */
-	public Encoder(BlockingQueue<BufferedImage> frameQueue,
-			String clientIp, int port,
-			int width, int height, int fps, int bitrate, int pixelFormat) {
-
-		this.frameQueue = frameQueue;
+	public Encoder(BlockingQueue<BufferedImage> videoQueue, BlockingQueue<BufferedImage> frameQueue,
+			String clientIp, int port, int width, int height, 
+			int fps, int bitrate, int pixelFormat) {
+		
+		this.videoFrameQueue = videoQueue;
+		this.videoFrameQueue = frameQueue;
 		this.clientIp = clientIp;
 		this.port = port;
 		this.width = width;
@@ -54,7 +65,7 @@ public class Encoder implements Runnable {
 		this.pixelFormat = pixelFormat;   // 기본값: avutil.AV_PIX_FMT_YUV420P
 	}
 
-
+	// 여기부터 Gemini 보고 수정 시작
 	@Override
 	public void run() {
 		String outputUrl = "udp://" + clientIp + ":" + port;
@@ -82,7 +93,7 @@ public class Encoder implements Runnable {
 			recorder.start();
 
 			while (running) {
-				BufferedImage image = frameQueue.take(); // 블로킹 방식
+				BufferedImage image = videoFrameQueue.take(); // 블로킹 방식
 				Frame frame = converter.convert(image);
 				recorder.record(frame);	// 인코딩 + 전송 담당
 			}
