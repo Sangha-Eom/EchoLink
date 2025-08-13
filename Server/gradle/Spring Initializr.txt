@@ -1,0 +1,2 @@
+웹서버 용 gradle
+https://start.spring.io/
