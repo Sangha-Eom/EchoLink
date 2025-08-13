@@ -36,8 +36,8 @@ public class Encoder implements Runnable {
 	 * @param port			UDP 전송 포트
 	 * @param width			가로
 	 * @param height		세로
-	 * @param fps		프레임
-	 * @param bitrate 비트레이트
+	 * @param fps			프레임
+	 * @param bitrate		비트레이트
 	 */
 	public Encoder(BlockingQueue<BufferedImage> frameQueue,
 			String clientIp, int port,
@@ -68,8 +68,8 @@ public class Encoder implements Runnable {
 				new FFmpegFrameRecorder(outputUrl, width, height)) {
 
 			// ✅ H.264 코덱 설정
-			// 추후 안드로이드에서 설정 가능하도록 설정(비트레이트, 프레임)
-			recorder.setFormat("flv"); // UDP에는 flv가 안정적
+			// 추후 안드로이드에서 설정 가능하도록 설정(비트레이트, 프레임 등)
+			recorder.setFormat("flv"); 				// UDP에는 flv가 안정적
 			recorder.setVideoCodec(avcodec.AV_CODEC_ID_H264);	// H.264 인코딩
 			recorder.setFrameRate(frameRate);		// ★FPS 설정(현재:30fps)
 			recorder.setVideoBitrate(videoBitrate); // ★비트레이트 설정
