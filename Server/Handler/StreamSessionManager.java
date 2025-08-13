@@ -50,12 +50,17 @@ public class StreamSessionManager {
         pixelFormat = 0;	// 0: 기본, 필요 시 avutil.AV_PIX_FMT_YUV420P 등 지정
 	}
 
+	
     /**
      * 클라이언트 IP와 포트를 받아 스트리밍 세션을 시작
      * @param clientIp 클라이언트의 IP 주소
      * @param port 클라이언트 수신 포트 (UDP)
      */
     public void startSession() {
+    	/*
+    	 * 1. 설정값 적용 확인
+    	 * 이후 화면 캡처 쓰레드 시작
+    	 */
         try {
 			System.out.println("스트리밍 세션 시작: " + clientIp + ":" + port);
 	        System.out.println("설정값: 해상도: " + width + "x" + height +
@@ -64,16 +69,15 @@ public class StreamSessionManager {
 			e.printStackTrace();
 		}
 
+        BlockingQueue<BufferedImage> frameQueue = new LinkedBlockingQueue<>(30);	// 캡처된 이미지 프레임을 담을 큐 (임시: 30)
 
-        // 캡처된 이미지 프레임을 담을 큐 (임시: 30)
-        BlockingQueue<BufferedImage> frameQueue = new LinkedBlockingQueue<>(30);
-
-        // 화면 캡처 스레드 시작
         ScreenCapture capture = new ScreenCapture(frameQueue, fps, serverScreenSize);
-        Thread captureThread = new Thread(capture);
-        captureThread.start();
+        new Thread(capture).start();
 
-        // 인코더 및 전송 스레드 시작
+        
+        /*
+         *  2. 인코더 및 전송 스레드 시작
+         */
         Encoder encoder = new Encoder(
         		frameQueue, 
         		clientIp, 
@@ -81,16 +85,10 @@ public class StreamSessionManager {
         		width, 	// 인코딩 목표 너비
         		height, // 인코딩 목표 높이
         		fps, 
-        		bitrate);
+        		bitrate,
+        		pixelFormat);
         
-        
-        // ✅ Android에서 연결 전에 변경 가능하도록 setter 사용
-        encoder.setVideoBitrate(bitrate);
-        encoder.setPixelFormat(pixelFormat);
-        
-        
-        Thread encoderThread = new Thread(encoder);
-        encoderThread.start();
+        new Thread(encoder).start();
     }
     
 }
