@@ -107,34 +107,13 @@ public class Encoder implements Runnable {
 			// 영상과 음성을 별도의 스레드에서 병렬로 처리하여 서로를 방해하지 않도록 함.
 			Java2DFrameConverter converter = new Java2DFrameConverter();
 
-			// 영상 처리 쓰레드
-			executor.submit(() -> {
-				while (running) {
-					try {
-						BufferedImage image = videoFrameQueue.take();	// 블로킹
-						Frame videoFrame = converter.convert(image);
-						recorder.record(videoFrame); // 비디오 프레임 인코딩 + 전송
-					} catch (Exception e) {
-						if (running) 
-							e.printStackTrace();
-					}
-				}
-			});
-
-
-			// 오디오 처리 쓰레드
-			executor.submit(() -> {
-				while (running) {
-					try {
-						Frame audioFrame = audioFrameQueue.take();	// 블로킹
-						recorder.record(audioFrame); // 오디오 프레임 인코딩
-					} catch (Exception e) {
-						if (running) 
-							e.printStackTrace();
-					}
-				}
-			});
 			
+            // 헬퍼 메소드 사용
+			// 영상, 오디오 쓰레드 시작
+            executor.submit(processVideoFrames(recorder, converter));	// 영상 쓰레드 시작
+            executor.submit(processAudioFrames(recorder));			// 오디오 쓰레드 시작
+			
+            
 			// 메인 쓰레드
 			// running 플래그가 false 될 때까지 대기
 			while (running) {
@@ -150,7 +129,45 @@ public class Encoder implements Runnable {
 		}
 
 	}
+	
+    /**
+     * 영상 처리 쓰레드
+     * @param recorder
+     * @param converter
+     * @return 영상 쓰레드
+     */
+    private Runnable processVideoFrames(FFmpegFrameRecorder recorder, Java2DFrameConverter converter) {
+        return () -> {
+            while (running) {
+                try {
+                    BufferedImage image = videoFrameQueue.take();
+                    Frame videoFrame = converter.convert(image);
+                    recorder.record(videoFrame);
+                } catch (Exception e) {
+                    if (running) e.printStackTrace();
+                }
+            }
+        };
+    }
 
+    /**
+     * 오디오 처리 쓰레드
+     * @param recorder
+     * @return 오디오 쓰레드
+     */
+    private Runnable processAudioFrames(FFmpegFrameRecorder recorder) {
+        return () -> {
+            while (running) {
+                try {
+                    Frame audioFrame = audioFrameQueue.take();
+                    recorder.record(audioFrame);
+                } catch (Exception e) {
+                    if (running) e.printStackTrace();
+                }
+            }
+        };
+    }
+	
 
 	/** 
 	 * 인코더 종료
