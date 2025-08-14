@@ -14,7 +14,7 @@ public class AudioDeviceManager {
 
     /**
      * FFmpeg를 이용해 시스템의 오디오 장치 목록을 조회하고,
-     * "Stereo Mix" 또는 "Loopback" 등 시스템 오디오 출력에 해당하는 장치 이름을 반환합니다.
+     * "Stereo Mix" 또는 "Loopback" 등 시스템 오디오 출력에 해당하는 장치 이름을 반환.
      * @return 찾은 오디오 장치 이름. 적합한 장치를 찾지 못하면 null을 반환합니다.
      */
     public static String findOutputDeviceName() {
@@ -65,7 +65,7 @@ public class AudioDeviceManager {
 
         } catch (Exception e) {
             System.err.println("FFmpeg를 통해 오디오 장치를 검색하는 중 오류 발생. FFmpeg가 시스템 경로(PATH)에 설치되어 있는지 확인하세요.");
-            // e.printStackTrace(); // 상세 오류 확인 필요 시 주석 해제
+            e.printStackTrace(); // 상세 오류 확인 필요 시
         }
         
         System.err.println(">> 경고: 시스템 오디오 출력 장치('Stereo Mix')를 자동으로 찾지 못했습니다. 오디오 캡처가 동작하지 않을 수 있습니다.");
