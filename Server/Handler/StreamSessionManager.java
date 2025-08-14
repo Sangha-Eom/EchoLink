@@ -78,7 +78,7 @@ public class StreamSessionManager {
         new Thread(screenCapture, "ScreenCapture-Thread").start();
         
         // 오디오 쓰레드
-        String audioDevice = AudioDeviceManager.findOutputDeviceName();	// 실제 장치 이름으로 전환
+        String audioDevice = AudioDeviceManager.windowsfindOutputDeviceName();	// windows의 실제 장치 이름으로 전환
         if (audioDevice != null && !audioDevice.isEmpty()) {
             AudioCapture audioCapture = new AudioCapture(audioQueue, audioDevice);
             new Thread(audioCapture, "AudioCapture-Thread").start();
@@ -100,7 +100,7 @@ public class StreamSessionManager {
         		clientIp, port, 
         		width, 	// 인코딩 목표 너비
         		height, // 인코딩 목표 높이
-        		fps, bitrate, pixelFormat);
+        		fps, bitrate);
         
         new Thread(encoder, "Encoder-Thread").start();
     }
