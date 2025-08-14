@@ -11,7 +11,7 @@ import java.util.concurrent.BlockingQueue;
  */
 public class ScreenCapture implements Runnable {
 
-	private final BlockingQueue<BufferedImage> frameQueue;	// 프레임 공유용 큐 + 쓰레드 블로킹 => Endcoder에게 넘김
+	private final BlockingQueue<TimestampedFrame<BufferedImage>> frameQueue;	// 프레임 공유용 큐 + 쓰레드 블로킹 => Endcoder에게 넘김
 	private final Rectangle captureArea;					// 캡처할 화면 영역
 	private volatile boolean running = true;				// 쓰레드 실행 상태
 
@@ -22,7 +22,7 @@ public class ScreenCapture implements Runnable {
 	 * @param frameQueue 프레임 공유용 큐
 	 * @param frameRate 프레임
 	 */
-	public ScreenCapture(BlockingQueue<BufferedImage> frameQueue, int fps, Dimension captureSize) {
+	public ScreenCapture(BlockingQueue<TimestampedFrame<BufferedImage>> frameQueue, int fps, Dimension captureSize) {
 		this.frameQueue = frameQueue;
 		this.frameIntervalMillis = 1000/fps;
 
@@ -49,7 +49,8 @@ public class ScreenCapture implements Runnable {
 
 			try {
 				BufferedImage screenshot = robot.createScreenCapture(captureArea);
-				frameQueue.put(screenshot);  // 소비자에게 전달 (큐에 프레임 추가)
+				// 캡처한 이미지와 현재 시간을 TimestampedFrame으로 감싸서 큐에 추가
+				frameQueue.put(new TimestampedFrame<>(screenshot, System.nanoTime()));
 			}
 			catch (InterruptedException e) {
 				running = false;
