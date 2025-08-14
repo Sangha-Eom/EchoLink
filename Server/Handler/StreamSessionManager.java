@@ -6,16 +6,15 @@ import java.awt.image.BufferedImage;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.bytedeco.javacv.Frame;
+
 /**
  * 스트리밍 세션을 관리하는 매니저
+ * 영상, 오디오
  * @author ESH
  */
 public class StreamSessionManager {
 	
-	/*
-	 *  추후 클라이언트로 부터
-	 *  프레임, 비트레이트, 픽셀 포맷 지정 가능하도록 수정 
-	 */
     private final String clientIp;
     private final int port;
     private final int fps;
@@ -46,8 +45,9 @@ public class StreamSessionManager {
         this.port = port;
         
         // 서버 화면 크기 내부적 초기화
-        serverScreenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        pixelFormat = 0;	// 0: 기본, 필요 시 avutil.AV_PIX_FMT_YUV420P 등 지정
+        this.serverScreenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        this.pixelFormat = 0;	// 0: 기본, 필요 시 avutil.AV_PIX_FMT_YUV420P 등 지정
+        
 	}
 
 	
@@ -59,7 +59,8 @@ public class StreamSessionManager {
     public void startSession() {
     	/*
     	 * 1. 설정값 적용 확인
-    	 * 이후 화면 캡처 쓰레드 시작
+    	 * 영상, 오디오 큐 생성
+    	 * 이후 영상, 오디오 쓰레드 시작
     	 */
         try {
 			System.out.println("스트리밍 세션 시작: " + clientIp + ":" + port);
@@ -68,27 +69,32 @@ public class StreamSessionManager {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
-        BlockingQueue<BufferedImage> frameQueue = new LinkedBlockingQueue<>(30);	// 캡처된 이미지 프레임을 담을 큐 (임시: 30)
-
-        ScreenCapture capture = new ScreenCapture(frameQueue, fps, serverScreenSize);
-        new Thread(capture).start();
+        
+        BlockingQueue<BufferedImage> frameQueue = new LinkedBlockingQueue<>(60); // 캡처된 이미지 프레임을 담을 큐 (임시: 30)
+        BlockingQueue<Frame> audioQueue = new LinkedBlockingQueue<>(200);	// 오디오 큐
+        
+        // 영상 쓰레드
+        ScreenCapture screenCapture = new ScreenCapture(frameQueue, fps, serverScreenSize);
+        new Thread(screenCapture, "ScreenCapture-Thread").start();
+        
+        // 오디오 쓰레드
+        String audioDevice = "스테레오 믹스(Realtek High Definition Audio)";	// 실제 장치 이름으로 전환
+        AudioCapture audioCapture = new AudioCapture(audioQueue, audioDevice);
+        new Thread(audioCapture, "AudioCapture-Thread").start();
 
         
         /*
-         *  2. 인코더 및 전송 스레드 시작
+         *  2. 인코더 쓰레드 시작
+         *  영상, 오디오 큐 사용
          */
         Encoder encoder = new Encoder(
-        		frameQueue, 
-        		clientIp, 
-        		port, 
+        		frameQueue, audioQueue,
+        		clientIp, port, 
         		width, 	// 인코딩 목표 너비
         		height, // 인코딩 목표 높이
-        		fps, 
-        		bitrate,
-        		pixelFormat);
+        		fps, bitrate, pixelFormat);
         
-        new Thread(encoder).start();
+        new Thread(encoder, "Encoder-Thread").start();
     }
     
 }
