@@ -1,5 +1,0 @@
-웹서버 용 gradle
-https://start.spring.io/
-
--적용법
-https://junuuu.tistory.com/40

@@ -1,0 +1,4 @@
+
+1. build.gradle.kts 파일에 dependences 내부에 의존성 추가
+2. 프로젝트 폴더에 마우스 우클릭을 한 후, 컨텍스트 메뉴에서 Gradle -> Refresh Gradle Project 를 선택
+
