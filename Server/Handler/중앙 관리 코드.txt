@@ -14,3 +14,8 @@ ClientHandler.java
 StreamSessionManager.java
 스트리밍 세션을 관리하는 매니저
 영상, 오디오
+
+
+---
+TimestampedFrame.java
+영상, 오디오 밀림 현상 보완 클래스
