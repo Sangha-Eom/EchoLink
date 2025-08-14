@@ -21,8 +21,8 @@ import org.bytedeco.ffmpeg.global.avutil;
  */
 public class Encoder implements Runnable {
 
-	private final BlockingQueue<BufferedImage> videoFrameQueue;	// 영상 공유용 큐
-	private final BlockingQueue<Frame> audioFrameQueue;			// 오디오 공유용 큐
+	private final BlockingQueue<TimestampedFrame<BufferedImage>> videoFrameQueue;	// 영상 공유용 큐
+	private final BlockingQueue<TimestampedFrame<Frame>> audioFrameQueue;			// 오디오 공유용 큐
 
 	/*
 	 * 영상용
@@ -38,6 +38,7 @@ public class Encoder implements Runnable {
 
 	private volatile boolean running = true;	// 종료
 
+
 	/**
 	 * 생성자
 	 * @param frameQueue	프레임 공유용 버퍼
@@ -48,7 +49,7 @@ public class Encoder implements Runnable {
 	 * @param fps			프레임
 	 * @param bitrate		비트레이트
 	 */
-	public Encoder(BlockingQueue<BufferedImage> videoQueue, BlockingQueue<Frame> audioQueue,
+	public Encoder(BlockingQueue<TimestampedFrame<BufferedImage>> videoQueue, BlockingQueue<TimestampedFrame<Frame>> audioQueue,
 			String clientIp, int port, int width, int height, 
 			int fps, int bitrate) {
 
@@ -110,8 +111,8 @@ public class Encoder implements Runnable {
 			
             // 헬퍼 메소드 사용
 			// 영상, 오디오 쓰레드 시작
-            executor.submit(processVideoFrames(recorder, converter));	// 영상 쓰레드 시작
-            executor.submit(processAudioFrames(recorder));			// 오디오 쓰레드 시작
+            executor.submit(() -> processVideoFrames(recorder, converter));	// 영상 쓰레드 시작
+            executor.submit(() -> processAudioFrames(recorder));			// 오디오 쓰레드 시작
 			
             
 			// 메인 쓰레드
@@ -134,38 +135,46 @@ public class Encoder implements Runnable {
      * 영상 처리 쓰레드
      * @param recorder
      * @param converter
-     * @return 영상 쓰레드
      */
-    private Runnable processVideoFrames(FFmpegFrameRecorder recorder, Java2DFrameConverter converter) {
-        return () -> {
-            while (running) {
-                try {
-                    BufferedImage image = videoFrameQueue.take();
-                    Frame videoFrame = converter.convert(image);
+    private void processVideoFrames(FFmpegFrameRecorder recorder, Java2DFrameConverter converter) {
+        while (running) {
+            try {
+                // '상자'를 꺼냄
+                TimestampedFrame<BufferedImage> tsFrame = videoFrameQueue.take();
+                Frame videoFrame = converter.convert(tsFrame.getFrame());
+
+                // synchronized 블록으로 recorder 접근을 동기화(쓰레드 동시 접근 제한)
+                synchronized (recorder) {
+                    // 타임스탬프 설정 (나노초 -> 마이크로초 변환)
+                    recorder.setTimestamp(tsFrame.getTimestamp() / 1000);
                     recorder.record(videoFrame);
-                } catch (Exception e) {
-                    if (running) e.printStackTrace();
                 }
+            } catch (Exception e) {
+                if (running) e.printStackTrace();
             }
-        };
+        }
     }
 
     /**
      * 오디오 처리 쓰레드
-     * @param recorder
-     * @return 오디오 쓰레드
+     * @param recorder 
      */
-    private Runnable processAudioFrames(FFmpegFrameRecorder recorder) {
-        return () -> {
-            while (running) {
-                try {
-                    Frame audioFrame = audioFrameQueue.take();
-                    recorder.record(audioFrame);
-                } catch (Exception e) {
-                    if (running) e.printStackTrace();
+    private void processAudioFrames(FFmpegFrameRecorder recorder) {
+        while (running) {
+            try {
+                // '상자'를 꺼냄
+                TimestampedFrame<Frame> tsFrame = audioFrameQueue.take();
+
+                // synchronized 블록으로 recorder 접근을 동기화(쓰레드 동시 접근 제한)
+                synchronized (recorder) {
+                    // 타임스탬프 설정 (나노초 -> 마이크로초 변환)
+                    recorder.setTimestamp(tsFrame.getTimestamp() / 1000);
+                    recorder.record(tsFrame.getFrame());
                 }
+            } catch (Exception e) {
+                if (running) e.printStackTrace();
             }
-        };
+        }
     }
 	
 
