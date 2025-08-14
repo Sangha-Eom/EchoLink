@@ -1,0 +1,5 @@
+1. FFmpeg
+서버 PC에 FFmpeg가 설치,
+어떤 위치에서든 ffmpeg 명령어를 실행할 수 있도록 시스템 환경 변수(PATH)에 등록.
+
+2. VGem
