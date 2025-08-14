@@ -22,7 +22,6 @@ public class StreamSessionManager {
     private final int width;	// 스트리밍 요청 가로 길이
     private final int height;	// 스트리밍 요청 세로 길이
 	private final Dimension serverScreenSize;	// 서버의 실제 화면 크기
-	private final int pixelFormat;	// 픽셀 포맷(향후 확장용)
 	
 	/**
 	 * 생성자
@@ -46,7 +45,6 @@ public class StreamSessionManager {
         
         // 서버 화면 크기 내부적 초기화
         this.serverScreenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        this.pixelFormat = 0;	// 0: 기본, 필요 시 avutil.AV_PIX_FMT_YUV420P 등 지정
         
 	}
 
@@ -70,8 +68,8 @@ public class StreamSessionManager {
 			e.printStackTrace();
 		}
         
-        BlockingQueue<BufferedImage> frameQueue = new LinkedBlockingQueue<>(60); // 캡처된 이미지 프레임을 담을 큐 (임시: 30)
-        BlockingQueue<Frame> audioQueue = new LinkedBlockingQueue<>(200);	// 오디오 큐
+        BlockingQueue<TimestampedFrame<BufferedImage>> frameQueue = new LinkedBlockingQueue<>(60); // 캡처된 이미지 프레임을 담을 큐 (임시: 30)
+        BlockingQueue<TimestampedFrame<Frame>> audioQueue = new LinkedBlockingQueue<>(200);	// 오디오 큐
         
         // 영상 쓰레드
         ScreenCapture screenCapture = new ScreenCapture(frameQueue, fps, serverScreenSize);
