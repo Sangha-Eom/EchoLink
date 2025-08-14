@@ -16,7 +16,7 @@ import java.util.concurrent.BlockingQueue;
  */
 public class AudioCapture implements Runnable {
 
-    private final BlockingQueue<Frame> audioFrameQueue;
+    private final BlockingQueue<TimestampedFrame<Frame>> audioFrameQueue;
     private volatile boolean running = true;
 
     // 캡처할 오디오 장치 이름. OS에 따라 변경(추후 추가=>현재는 Windows만 지원)
@@ -29,7 +29,7 @@ public class AudioCapture implements Runnable {
      * @param audioFrameQueue 오디오 프레임 큐
      * @param audioDevice OS별 오디오 장치 이름
      */
-    public AudioCapture(BlockingQueue<Frame> audioFrameQueue, String audioDevice) {
+    public AudioCapture(BlockingQueue<TimestampedFrame<Frame>> audioFrameQueue, String audioDevice) {
         this.audioFrameQueue = audioFrameQueue;
         this.audioDeviceName = audioDevice;
     }
@@ -47,6 +47,8 @@ public class AudioCapture implements Runnable {
 //        	inputFormat = "pulse";
 //        else if (inputFormat.contains("mac"))
 //        	inputFormat = "pulse";
+        else
+        	inputFormat = "pulse";	// 다른 운영 체제 시 기본값:pulse
 
         try {
             /*
@@ -63,7 +65,8 @@ public class AudioCapture implements Runnable {
             while (running) {
                 Frame audioFrame = grabber.grab();	 // 오디오 프레임 캡처
                 if (audioFrame != null) {
-                    audioFrameQueue.put(audioFrame); // 큐에 프레임 추가
+                	// 캡처한 오디오 프레임과 현재 시간을 TimestampedFrame으로 감싸서 큐에 추가
+                    audioFrameQueue.put(new TimestampedFrame<>(audioFrame.clone(), System.nanoTime()));
                 }
             }
 
