@@ -9,6 +9,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.bytedeco.ffmpeg.global.avutil;
 
 
 /**
@@ -32,10 +33,8 @@ public class Encoder implements Runnable {
 	private final int height;								// " (세로)
 	private final int frameRate;							// 프레임
 	private int videoBitrate; 								// 비트레이트(영상 품질)
-	private int pixelFormat;								// 픽셀 포맷
 
-
-	private final ExecutorService executor = Executors.newFixedThreadPool(2); // 영상/음성 처리용 스레드 풀
+	private final ExecutorService executor = Executors.newFixedThreadPool(2); // 영상,음성 처리용 스레드 풀
 
 	private volatile boolean running = true;	// 종료
 
@@ -51,7 +50,7 @@ public class Encoder implements Runnable {
 	 */
 	public Encoder(BlockingQueue<BufferedImage> videoQueue, BlockingQueue<Frame> audioQueue,
 			String clientIp, int port, int width, int height, 
-			int fps, int bitrate, int pixelFormat) {
+			int fps, int bitrate) {
 
 		this.videoFrameQueue = videoQueue;
 		this.audioFrameQueue = audioQueue;
@@ -61,8 +60,6 @@ public class Encoder implements Runnable {
 		this.height = height;
 		this.frameRate = fps;
 		this.videoBitrate = bitrate;
-
-		this.pixelFormat = pixelFormat;   // 기본값: avutil.AV_PIX_FMT_YUV420P
 	}
 
 
@@ -73,8 +70,9 @@ public class Encoder implements Runnable {
 
 		// ✅ FFmpegFrameRecorder 설정
 		// outputUrl에게 데이터 자동 전송
+		// 오디오 채널(2=스테레오) 명시적 설정
 		try (FFmpegFrameRecorder recorder = 
-				new FFmpegFrameRecorder(outputUrl, width, height)) {
+				new FFmpegFrameRecorder(outputUrl, width, height, 2)) {
 
 			/*
 			 *  --- 비디오 설정 ---
@@ -82,10 +80,10 @@ public class Encoder implements Runnable {
 			// H.264 코덱 설정
 			// 추후 안드로이드에서 설정 가능하도록 설정(비트레이트, 프레임 등)
 			recorder.setFormat("flv"); 				// UDP에는 flv가 안정적
-			recorder.setVideoCodec(avcodec.AV_CODEC_ID_H264);	// H.264 인코딩
-			recorder.setFrameRate(frameRate);		// ★FPS 설정(현재:30fps)
+			recorder.setVideoCodec(avcodec.AV_CODEC_ID_H264);		// H.264 표준 인코딩
+			recorder.setFrameRate(frameRate);		// ★FPS 설정
 			recorder.setVideoBitrate(videoBitrate); // ★비트레이트 설정
-			recorder.setPixelFormat(pixelFormat); // H.264의 픽셀 포맷
+			recorder.setPixelFormat(avutil.AV_PIX_FMT_YUV420P); 	// H.264 표준 픽셀 포맷
 
 			// Optional: 인코딩 지연 줄이기 위한 설정(딜레이 최소화)
 			recorder.setVideoOption("tune", "zerolatency");
