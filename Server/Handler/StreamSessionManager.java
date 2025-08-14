@@ -78,9 +78,17 @@ public class StreamSessionManager {
         new Thread(screenCapture, "ScreenCapture-Thread").start();
         
         // 오디오 쓰레드
-        String audioDevice = "스테레오 믹스(Realtek High Definition Audio)";	// 실제 장치 이름으로 전환
-        AudioCapture audioCapture = new AudioCapture(audioQueue, audioDevice);
-        new Thread(audioCapture, "AudioCapture-Thread").start();
+        String audioDevice = AudioDeviceManager.findOutputDeviceName();	// 실제 장치 이름으로 전환
+        if (audioDevice != null && !audioDevice.isEmpty()) {
+            AudioCapture audioCapture = new AudioCapture(audioQueue, audioDevice);
+            new Thread(audioCapture, "AudioCapture-Thread").start();
+        }
+        else {
+            System.err.println("오디오 장치를 찾지 못해 오디오 캡처를 시작하지 않습니다.");
+            // (선택) 오디오 큐에 빈 프레임을 주기적으로 넣어 인코더가 멈추지 않게 할 수도 있습니다.
+            // 여기서는 오디오 없이 영상만 스트리밍되도록 합니다.
+        }
+
 
         
         /*
