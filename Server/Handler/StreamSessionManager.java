@@ -15,6 +15,7 @@ import org.bytedeco.javacv.Frame;
  */
 public class StreamSessionManager {
 	
+	// 영상 설정값
     private final String clientIp;
     private final int port;
     private final int fps;
@@ -22,6 +23,11 @@ public class StreamSessionManager {
     private final int width;	// 스트리밍 요청 가로 길이
     private final int height;	// 스트리밍 요청 세로 길이
 	private final Dimension serverScreenSize;	// 서버의 실제 화면 크기
+	
+	// 쓰레드 인스턴스
+	private Encoder encoder;
+	private ScreenCapture screenCapture;
+	private AudioCapture audioCapture;
 	
 	/**
 	 * 생성자
@@ -72,14 +78,14 @@ public class StreamSessionManager {
         BlockingQueue<TimestampedFrame<Frame>> audioQueue = new LinkedBlockingQueue<>(200);	// 오디오 큐
         
         // 영상 쓰레드
-        ScreenCapture screenCapture = new ScreenCapture(frameQueue, fps, serverScreenSize);
-        new Thread(screenCapture, "ScreenCapture-Thread").start();
+        this.screenCapture = new ScreenCapture(frameQueue, fps, serverScreenSize);
+        new Thread(this.screenCapture, "ScreenCapture-Thread").start();
         
         // 오디오 쓰레드
-        String audioDevice = AudioDeviceManager.windowsfindOutputDeviceName();	// windows의 실제 장치 이름으로 전환
+        String audioDevice = AudioDeviceManager.windowsFindOutputDeviceName();	// windows의 실제 장치 이름으로 전환
         if (audioDevice != null && !audioDevice.isEmpty()) {
-            AudioCapture audioCapture = new AudioCapture(audioQueue, audioDevice);
-            new Thread(audioCapture, "AudioCapture-Thread").start();
+            this.audioCapture = new AudioCapture(audioQueue, audioDevice);
+            new Thread(this.audioCapture, "AudioCapture-Thread").start();
         }
         else {
             System.err.println("오디오 장치를 찾지 못해 오디오 캡처를 시작하지 않습니다.");
@@ -87,20 +93,26 @@ public class StreamSessionManager {
             // 여기서는 오디오 없이 영상만 스트리밍되도록 합니다.
         }
 
-
         
         /*
          *  2. 인코더 쓰레드 시작
          *  영상, 오디오 큐 사용
          */
-        Encoder encoder = new Encoder(
+        this.encoder = new Encoder(
         		frameQueue, audioQueue,
         		clientIp, port, 
         		width, 	// 인코딩 목표 너비
         		height, // 인코딩 목표 높이
         		fps, bitrate);
         
-        new Thread(encoder, "Encoder-Thread").start();
+        new Thread(this.encoder, "Encoder-Thread").start();
+    }
+    
+    public void stopSession() {
+        // 필드에 저장된 각 인스턴스의 stop() 메소드 호출
+        if (encoder != null) encoder.stop();
+        if (screenCapture != null) screenCapture.stop();
+        if (audioCapture != null) audioCapture.stop();
     }
     
 }
