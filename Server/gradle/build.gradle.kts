@@ -8,6 +8,13 @@
 plugins {
     // Apply the java-library plugin for API and implementation separation.
     `java-library`
+    
+    // 로그인 기능
+    // Spring Boot
+    java
+	id("org.springframework.boot") version "3.5.4"
+	id("io.spring.dependency-management") version "1.1.7"
+    
 }
 
 repositories {
@@ -35,6 +42,17 @@ dependencies {
     // 데이터 교환용
     // json
     implementation("org.json:json:20240303")
+    
+    // 로그인 기능
+    // SpringBoot
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+	implementation("org.springframework.boot:spring-boot-starter-security")
+	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
+	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("org.thymeleaf.extras:thymeleaf-extras-springsecurity6")
+	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.springframework.security:spring-security-test")
+	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
