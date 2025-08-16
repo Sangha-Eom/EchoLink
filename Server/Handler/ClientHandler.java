@@ -17,8 +17,9 @@ import org.json.JSONObject;
 public class ClientHandler implements Runnable {
 
 	private final Socket clientSocket;
-	private final AuthManager authManager;				// AuthManager 인스턴스
-
+	private final AuthManager authManager;	// AuthManager 인스턴스
+	private StreamSessionManager streamManager;	// 세션 매니저
+	
 	public ClientHandler(Socket socket) {
 		this.clientSocket = socket;
 		this.authManager = new AuthManager();	// Handler마다 독립적인 인스턴스 생성
@@ -78,7 +79,7 @@ public class ClientHandler implements Runnable {
 			 *  3. StreamSessionManager를 통해 스트리밍 세션 시작
 			 *  StreamSessionManager의 startSession이 스트림 스레드를 관리
 			 */
-			StreamSessionManager streamManager = new StreamSessionManager(
+			this.streamManager = new StreamSessionManager(
 					clientSocket.getInetAddress().getHostAddress(),
 					fps, bitrate, width, height, port
 					);
@@ -101,6 +102,9 @@ public class ClientHandler implements Runnable {
 				if (clientSocket != null && !clientSocket.isClosed()) {
 					clientSocket.close();
 				}
+	            if (streamManager != null) {
+	                streamManager.stopSession(); // 모든 캡처/인코딩 스레드를 중지시키는 메소드
+	            }
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
