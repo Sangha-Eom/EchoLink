@@ -17,7 +17,7 @@ public class AudioDeviceManager {
      * "Stereo Mix" 또는 "Loopback" 등 시스템 오디오 출력에 해당하는 장치 이름을 반환.
      * @return 찾은 오디오 장치 이름. 적합한 장치를 찾지 못하면 null을 반환합니다.
      */
-    public static String findOutputDeviceName() {
+    public static String windowsFindOutputDeviceName() {
         // Windows 운영체제에서만 이 로직을 실행
         String os = System.getProperty("os.name").toLowerCase();
         if (!os.contains("win")) {
