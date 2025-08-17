@@ -1,3 +1,5 @@
-lombok (예: @Component)
-https://mangkyu.tistory.com/78
+1. lombok(코드)(예: @Component)
+  https://mangkyu.tistory.com/78
 
+2. 소설 로그인 구현(Login)
+  https://www.youtube.com/watch?v=E3Z9346G8mE&list=PLbq5jHjpmq7q3cggEGN8TXnY-P2UbIA4p&index=2
