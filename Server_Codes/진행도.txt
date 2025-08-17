@@ -1,6 +1,13 @@
 다음에 해야할 거
-업데이트 사항에서 total code 제외한 파일 전부 이동
+- 키보드 입력 구현
 
-로그인 기능 구현
-Login
-소설 로그인 -> 인증 절차 -> 포트로 소켓 전송
+
+구현해야 할 것
+- 로그인 기능 구현: 나중에
+  https://www.youtube.com/watch?v=E3Z9346G8mE&list=PLbq5jHjpmq7q3cggEGN8TXnY-P2UbIA4p&index=2
+  yaml 코드 배우기, 인증절차 공부 후 구현
+  Login/auth_server
+  소설 로그인 -> 인증 절차 -> 포트로 소켓 전송
+
+- 키보드 입력 구현 ongoing
+  
