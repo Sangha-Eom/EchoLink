@@ -1,19 +1,16 @@
-다음에 해야할 거
-- 1. 깃허브 정리 및 코드 옮기기
-  ㄴ 현재 패키지 처럼 옮기기
-- 2. Gemini 마지막 채팅 구현 시작
-- 3. 로그인 인증 기능 구현
-  ㄴ JWT 토큰 인증 구현
-  ㄴ Http 구현 ( 기기등록 )
-  ㄴ 
+**다음에 해야할 거
 
 
-구현해야 할 것
-- 로그인 기능 구현: ongoing
+
+**구현해야 할 것
+- 로그인 기능 구현 ongoing
   https://www.youtube.com/watch?v=E3Z9346G8mE&list=PLbq5jHjpmq7q3cggEGN8TXnY-P2UbIA4p&index=2
   yaml 코드 배우기, 인증절차 공부 후 구현
   Login/auth_server
   소설 로그인 -> 인증 절차 -> 포트로 소켓 전송
 
 - 키보드 입력 구현: 나중에
-  
+
+
+**추후 필수 수정 사항
+application.yml의 secret key 수정 -> AuthManager.java 반영
