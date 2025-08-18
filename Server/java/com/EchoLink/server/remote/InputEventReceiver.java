@@ -9,13 +9,20 @@ import java.io.InputStreamReader;
 import java.net.Socket;
 import org.json.JSONObject;
 
+import com.EchoLink.server.stream.Encoder;
+
+
 /**
- * 클라이언트로부터 마우스/키보드 입력을 받아 처리하는 클래스
+ * 클라이언트로부터 여러 이벤트를 받아 처리하는 클래스
+ * 
+ * 마우스/키보드 입력
+ * 비트레이트 조절(제어)
  * @author ESH
  */
 public class InputEventReceiver implements Runnable {
 
     private Socket clientSocket;
+    private Encoder encoder;
     private Robot robot;
     private volatile boolean running = true;
 
@@ -23,8 +30,9 @@ public class InputEventReceiver implements Runnable {
      * 생성자
      * @param clientSocket 클라이언트와 연결된 TCP 소켓
      */
-    public InputEventReceiver(Socket clientSocket) throws AWTException {
+    public InputEventReceiver(Socket clientSocket, Encoder encoder) throws AWTException {
         this.clientSocket = clientSocket;
+        this.encoder = encoder;
         this.robot = new Robot();
     }
 
@@ -36,7 +44,8 @@ public class InputEventReceiver implements Runnable {
                 try {
                     JSONObject eventJson = new JSONObject(line);
                     String eventType = eventJson.getString("type");
-
+                    
+                    // TODO: 마우스 휠클릭 구현
                     switch (eventType) {
                         case "MOUSE_MOVE":
                             handleMouseMove(eventJson);
@@ -50,6 +59,8 @@ public class InputEventReceiver implements Runnable {
                         case "KEY_RELEASE":
                             handleKeyRelease(eventJson);
                             break;
+                        case "CHANGE_BITRATE":
+                        	handleBitrateChange(eventJson);
                         default:
                             System.out.println("알 수 없는 입력 타입: " + eventType);
                             break;
@@ -65,14 +76,20 @@ public class InputEventReceiver implements Runnable {
         }
     }
 
-    // 마우스 이동 처리
+	/**
+	 * 마우스 이동 처리
+	 * @param eventJson
+	 */
     private void handleMouseMove(JSONObject eventJson) {
         int x = eventJson.getInt("x");
         int y = eventJson.getInt("y");
         robot.mouseMove(x, y);
     }
 
-    // 마우스 클릭 처리
+    /**
+     * 마우스 클릭 처리
+     * @param eventJson
+     */
     private void handleMouseClick(JSONObject eventJson) {
         String button = eventJson.getString("button");
         int mask = switch (button) {
@@ -86,19 +103,38 @@ public class InputEventReceiver implements Runnable {
         }
     }
 
-    // 키 누름 처리
+    /**
+     * 키 누름 처리
+     * @param eventJson
+     */
     private void handleKeyPress(JSONObject eventJson) {
         int keyCode = eventJson.getInt("keyCode");
         robot.keyPress(keyCode);
     }
 
-    // 키 떼기 처리
+    /**
+     * 키 떼기 처리
+     * @param eventJson
+     */
     private void handleKeyRelease(JSONObject eventJson) {
         int keyCode = eventJson.getInt("keyCode");
         robot.keyRelease(keyCode);
     }
-
-    // 스레드 종료
+    
+    /**
+     * 비트레이트 변경
+     * @param eventJson
+     */
+    private void handleBitrateChange(JSONObject eventJson) {
+		int newBitrate = eventJson.getInt("bitrate");
+		if (encoder == null) {
+			encoder.setVideoBitrate(newBitrate);
+		}
+	}
+    
+    /**
+     *  스레드 종료
+     */
     public void stop() {
         running = false;
         try {

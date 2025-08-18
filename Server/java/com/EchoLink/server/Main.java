@@ -58,8 +58,7 @@ public class Main {
                 }
             }
 
-            // 3. 인증 성공 후, 스트리밍 서버 시작 (기존 로직)
-            // TODO: 발급받은 jwtToken을 AuthManager가 사용하도록 전달해야 함
+            // 3. 인증 성공 후, 스트리밍 서버 시작
             startStreamingServer(jwtToken);
 
         } catch (Exception e) {
@@ -70,7 +69,7 @@ public class Main {
     
     /**
      * EchoLink 스트리밍 시작
-     * @param jwtToken
+     * @param jwtToken	서버로부터 발급받은 원본 토큰
      * @throws IOException
      */
     private static void startStreamingServer(String jwtToken) throws IOException {
@@ -80,8 +79,8 @@ public class Main {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("클라이언트 연결됨: " + clientSocket.getInetAddress().getHostAddress());
-                // TODO: ClientHandler가 jwtToken을 사용하도록 생성자 등 수정 필요
-                new Thread(new ClientHandler(clientSocket)).start();
+                
+                new Thread(new ClientHandler(clientSocket, jwtToken)).start();
             }
         }
     }

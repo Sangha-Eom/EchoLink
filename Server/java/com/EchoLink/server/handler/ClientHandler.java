@@ -10,92 +10,57 @@ import org.json.JSONObject;
 
 import com.EchoLink.server.auth.AuthManager;
 import com.EchoLink.server.remote.InputEventReceiver;
+import com.EchoLink.server.stream.Encoder;
 
 /**
- * 클라이언트로 받은 설정값 적용 및 스트리밍 시작
+ * 클라이언트별 연결 관리, 인증, 설정 수신, 세션 시작 및 종료 총괄 클래스.
+ * 
  * 각 기능 모듈들 관리
+ * 1. JWT 수신 및 인증
+ * 2. 스트리밍 세션 설정값 수신 및 시작
+ * 3. 입력 이벤트 시작
  * @author ESH
  */
 public class ClientHandler implements Runnable {
 
 	private final Socket clientSocket;
-	private final AuthManager authManager;	// AuthManager 인스턴스
+	private final String serverJwt;			// 서버로부터 발급받은 원본 JWT
+	
 	private StreamSessionManager streamManager;	// 세션 매니저
-
-	public ClientHandler(Socket socket) {
+	private final AuthManager authManager;		// 인증 관리
+	private final Encoder activateEncoder;		// 제어 관리 명령
+	
+	/**
+	 * 생성자
+	 * @param socket 연결
+	 * @param serverJWT 서버로부터 발급받은 원본 JWT
+	 */
+	public ClientHandler(Socket socket, String serverJWT) {
 		this.clientSocket = socket;
+		this.serverJwt = serverJWT;
+		
 		this.authManager = new AuthManager();	// Handler마다 독립적인 인스턴스 생성
+		this.activateEncoder = streamManager.getEncoder();
 	}
 
 	@Override
 	public void run() {
-		try (
-				BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 				BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()))
-				) {
-			/*
-			 *  1. 로그인 정보 수신 및 인증
-			 */
-			String tokenData = reader.readLine(); 
-			if (tokenData == null)	// 클라이언트 비정상 종료
-				return;
+			) {
+			
+			// 1. 클라이언트 로그인 인증 처리
+			if (!handleAuthentication(reader, writer))
+				return;	// 인증 실패 시 즉시 종료.
+			
 
-			JSONObject tokenJson = new JSONObject(tokenData);
-			String jwt = tokenJson.getString("jwt"); // 클라이언트가 보낸 JWT 추출
+			// 2. 스트리밍 세션 설정 및 시작
+			if (!setupAndStartStreamingSession(reader))
+				return; // 세션 설정 실패 시 종료
 
-			// authManage의 validateToken 메소드로 검증
-			if (!authManager.validateToken(jwt)) {	// 인증 실패
-				writer.write("FAIL\n");
-				writer.flush();
-				System.out.println("로그인(JWT 인증) 실패: " + authManager.getUsernameFromToken(jwt));
-				return;
-			}
-
-			String username = authManager.getUsernameFromToken(jwt);
-			writer.write("OK\n");
-			writer.flush();
-			System.out.println("로그인(JWT 인증) 성공: " + username);
-
-
-			/*
-			 *  2. 세션 설정값 수신
-			 *  StreamSessionManager 인스턴스
-			 *  클라이언트로부터 받은 설정값 수신
-			 *  a. fps: 프레임
-			 *  b. bitrate: 비트레이트
-			 *  c. width: 가로
-			 *  d. height: 세로
-			 *  e. port: 클라이언트 UDP 포트 번호
-			 */
-			String configData = reader.readLine();
-			if (configData == null)		// 설정값 받아오기 실패
-				return;
-
-			JSONObject configJson = new JSONObject(configData);
-			int fps = configJson.getInt("fps");
-			int bitrate = configJson.getInt("bitrate");
-			int width = configJson.getInt("width");
-			int height = configJson.getInt("height");
-			int port = configJson.getInt("port");
-
-
-			/*
-			 *  3. StreamSessionManager를 통해 스트리밍 세션 시작
-			 *  StreamSessionManager의 startSession이 스트림 스레드를 관리
-			 */
-			this.streamManager = new StreamSessionManager(
-					clientSocket.getInetAddress().getHostAddress(),
-					fps, bitrate, width, height, port
-					);
-			streamManager.startSession();
-
-
-			/*
-			 *  4. 입력 이벤트 처리 쓰레드
-			 *  InputEventRecieiver를 통해 송/수신
-			 */
-			InputEventReceiver inputReceiver = new InputEventReceiver(clientSocket);
-			new Thread(inputReceiver).start();
+			
+			// 3. 원격 입력 처리 시작
+			startInputReceiver();
 
 		} 
 		catch (Exception e) {
@@ -105,18 +70,88 @@ public class ClientHandler implements Runnable {
 			e.printStackTrace();	// 상세 오류 정보
 		} 
 		finally {
-			try {
-				if (clientSocket != null && !clientSocket.isClosed()) {
-					clientSocket.close();
-				}
-				if (streamManager != null) {
-					streamManager.stopSession(); // 모든 캡처/인코딩 스레드를 중지시키는 메소드
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			cleanupSession();
 		}
 		
-		/* end */
 	}
+
+
+	/** 
+	 * 1. 클라이언트의 로그인 정보(JWT) 수신 및 인증
+	 * @return 인증 성공 시 true, 실패 시 false
+	 */
+	private boolean handleAuthentication(BufferedReader reader, BufferedWriter writer) throws IOException {
+		String tokenData = reader.readLine();
+		if (tokenData == null) 
+			return false;
+
+		JSONObject tokenJson = new JSONObject(tokenData);
+		String clientJwt = tokenJson.getString("jwt");	// 클라이언트가 보낸 JWT
+
+		if (!authManager.validateToken(this.serverJwt, clientJwt)) {	// 인증 실패
+			writer.write("FAIL\n");
+			writer.flush();
+			System.out.println("로그인(JWT 인증) 실패: " + authManager.getUsernameFromToken(clientJwt));
+			return false;
+		}
+
+		String username = authManager.getUsernameFromToken(clientJwt);
+		writer.write("OK\n");
+		writer.flush();
+		System.out.println("로그인(JWT 인증) 성공: " + username);
+		return true;
+		
+	}
+	
+	/**
+	 * 2. 클라이언트로부터 스트리밍 설정값을 받아 세션 시작
+	 * @return 세션 시작 성공 시 true, 실패 시 false
+	 */
+	private boolean setupAndStartStreamingSession(BufferedReader reader) throws IOException {
+		String configData = reader.readLine();
+		if (configData == null) return false;
+
+		JSONObject configJson = new JSONObject(configData);
+		int fps = configJson.getInt("fps");
+		int bitrate = configJson.getInt("bitrate");
+		int width = configJson.getInt("width");
+		int height = configJson.getInt("height");
+		int port = configJson.getInt("port");
+		
+		// 세션 시작
+		this.streamManager = new StreamSessionManager(
+				clientSocket.getInetAddress().getHostAddress(),
+				fps, bitrate, width, height, port
+		);
+		streamManager.startSession();
+		return true;
+	}
+	
+	
+	/**
+	 * 3. 원격 입력 처리 쓰레드 시작
+	 */
+	private void startInputReceiver() throws Exception {
+		InputEventReceiver inputReceiver = new InputEventReceiver(clientSocket, activateEncoder);
+		new Thread(inputReceiver).start();
+	}
+	
+	
+	/**
+	 * 4. 모든 세션 리소스를 정리 및 소켓 닫기
+	 */
+	private void cleanupSession() {
+		if (streamManager != null) {
+			streamManager.stopSession();
+			System.out.println("스트리밍 세션이 종료되었습니다.");
+		}
+		try {
+			if (clientSocket != null && !clientSocket.isClosed()) {
+				clientSocket.close();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 }

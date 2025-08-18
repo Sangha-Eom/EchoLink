@@ -119,5 +119,13 @@ public class StreamSessionManager {
         if (screenCapture != null) screenCapture.stop();
         if (audioCapture != null) audioCapture.stop();
     }
+
+    /**
+     * Getter
+     * @return encoder
+     */
+	public Encoder getEncoder() {
+		return this.encoder;
+	}
     
 }

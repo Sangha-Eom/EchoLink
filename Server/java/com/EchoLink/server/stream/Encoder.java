@@ -34,6 +34,7 @@ public class Encoder implements Runnable {
 	private final int frameRate;							// 프레임
 	private int videoBitrate; 								// 비트레이트(영상 품질)
 
+	private FFmpegFrameRecorder recorder;	// 영상/오디오 제공자
 	private final ExecutorService executor = Executors.newFixedThreadPool(2); // 영상,음성 처리용 스레드 풀
 
 	private volatile boolean running = true;	// 종료
@@ -69,11 +70,12 @@ public class Encoder implements Runnable {
 		String outputUrl = "udp://" + clientIp + ":" + port + "?pkt_size=1316&fifo_size=1000000";
 		System.out.println("UDP 스트리밍(Encoder) 시작: " + outputUrl);
 
-		// ✅ FFmpegFrameRecorder 설정
+		// FFmpegFrameRecorder 설정
 		// outputUrl에게 데이터 자동 전송
 		// 오디오 채널(2=스테레오) 명시적 설정
-		try (FFmpegFrameRecorder recorder = 
-				new FFmpegFrameRecorder(outputUrl, width, height, 2)) {
+		try {
+
+			recorder = new FFmpegFrameRecorder(outputUrl, width, height, 2);
 
 			/*
 			 *  --- 비디오 설정 ---
@@ -98,29 +100,29 @@ public class Encoder implements Runnable {
 			recorder.setSampleRate(44100); 					// AudioCapture와 동일하게 설정
 			recorder.setAudioBitrate(192000);				 // 192kbps
 
-			
+
 			// 인코더 실행
 			System.out.println("인코더 시작 (영상+음성): " + outputUrl);
 			recorder.start();
 
-			
-			
+
+			/*
+			 * 쓰레드 시작
+			 */
 			// 영상과 음성을 별도의 스레드에서 병렬로 처리하여 서로를 방해하지 않도록 함.
 			Java2DFrameConverter converter = new Java2DFrameConverter();
+			
+			// 영상, 오디오 쓰레드
+			executor.submit(() -> processVideoFrames(recorder, converter));	// 영상 쓰레드 시작
+			executor.submit(() -> processAudioFrames(recorder));			// 오디오 쓰레드 시작
 
-			
-            // 헬퍼 메소드 사용
-			// 영상, 오디오 쓰레드 시작
-            executor.submit(() -> processVideoFrames(recorder, converter));	// 영상 쓰레드 시작
-            executor.submit(() -> processAudioFrames(recorder));			// 오디오 쓰레드 시작
-			
-            
+
 			// 메인 쓰레드
 			// running 플래그가 false 될 때까지 대기
 			while (running) {
 				Thread.sleep(100);
 			}
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -130,67 +132,86 @@ public class Encoder implements Runnable {
 		}
 
 	}
-	
-    /**
-     * 영상 처리 쓰레드
-     * @param recorder
-     * @param converter
-     */
-    private void processVideoFrames(FFmpegFrameRecorder recorder, Java2DFrameConverter converter) {
-        while (running) {
-            try {
-                // '상자'를 꺼냄
-                TimestampedFrame<BufferedImage> tsFrame = videoFrameQueue.take();
-                Frame videoFrame = converter.convert(tsFrame.getFrame());
 
-                // synchronized 블록으로 recorder 접근을 동기화(쓰레드 동시 접근 제한)
-                synchronized (recorder) {
-                    // 타임스탬프 설정 (나노초 -> 마이크로초 변환)
-                    recorder.setTimestamp(tsFrame.getTimestamp() / 1000);
-                    recorder.record(videoFrame);
-                }
-            } catch (Exception e) {
-                if (running) e.printStackTrace();
-            }
-        }
-    }
+	/**
+	 * 영상 처리 쓰레드
+	 * @param recorder
+	 * @param converter
+	 */
+	private void processVideoFrames(FFmpegFrameRecorder recorder, Java2DFrameConverter converter) {
+		while (running) {
+			try {
+				// '상자'를 꺼냄
+				TimestampedFrame<BufferedImage> tsFrame = videoFrameQueue.take();
+				Frame videoFrame = converter.convert(tsFrame.getFrame());
 
-    /**
-     * 오디오 처리 쓰레드
-     * @param recorder 
-     */
-    private void processAudioFrames(FFmpegFrameRecorder recorder) {
-        while (running) {
-            try {
-                // '상자'를 꺼냄
-                TimestampedFrame<Frame> tsFrame = audioFrameQueue.take();
+				// synchronized 블록으로 recorder 접근을 동기화(쓰레드 동시 접근 제한)
+				synchronized (recorder) {
+					// 타임스탬프 설정 (나노초 -> 마이크로초 변환)
+					recorder.setTimestamp(tsFrame.getTimestamp() / 1000);
+					recorder.record(videoFrame);
+				}
+			} catch (Exception e) {
+				if (running) e.printStackTrace();
+			}
+		}
+	}
 
-                // synchronized 블록으로 recorder 접근을 동기화(쓰레드 동시 접근 제한)
-                synchronized (recorder) {
-                    // 타임스탬프 설정 (나노초 -> 마이크로초 변환)
-                    recorder.setTimestamp(tsFrame.getTimestamp() / 1000);
-                    recorder.record(tsFrame.getFrame());
-                }
-            } catch (Exception e) {
-                if (running) e.printStackTrace();
-            }
-        }
-    }
-	
+	/**
+	 * 오디오 처리 쓰레드
+	 * @param recorder 
+	 */
+	private void processAudioFrames(FFmpegFrameRecorder recorder) {
+		while (running) {
+			try {
+				// '상자'를 꺼냄
+				TimestampedFrame<Frame> tsFrame = audioFrameQueue.take();
+
+				// synchronized 블록으로 recorder 접근을 동기화(쓰레드 동시 접근 제한)
+				synchronized (recorder) {
+					// 타임스탬프 설정 (나노초 -> 마이크로초 변환)
+					recorder.setTimestamp(tsFrame.getTimestamp() / 1000);
+					recorder.record(tsFrame.getFrame());
+				}
+			} catch (Exception e) {
+				if (running) e.printStackTrace();
+			}
+		}
+	}
+
+	/**
+	 * 비트레이트를 동적으로 변경하는 메소드.(스트리밍 중)
+	 * 
+	 * FFmpegFrameRecorder는 스레드에 안전하지 않을 수 있으므로 동기화 처리.
+	 * @param bitrate 새로운 비트레이트 값(bps 단위)
+	 */
+	public void setVideoBitrate(int bitrate) {
+		try {
+			synchronized (recorder) { 	// recorder 객체를 동기화하여 안전하게 접근
+				this.videoBitrate = bitrate;
+				recorder.setVideoBitrate(this.videoBitrate);
+				System.out.println(">> 비트레이트가 " + bitrate + "bps로 변경되었습니다.");
+			}
+		} catch (Exception e) {
+			System.err.println("비트레이트 변경 중 오류 발생: " + e.getMessage());
+		}
+	}
+
+
 
 	/** 
 	 * 인코더 종료
 	 */
 	public void stop() {
 		running = false;
-	       executor.shutdownNow();
-	        try {
-	            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-	                System.err.println("인코더 스레드 풀이 정상적으로 종료되지 않았습니다.");
-	            }
-	        } catch (InterruptedException e) {
-	            executor.shutdownNow();
-	        }
+		executor.shutdownNow();
+		try {
+			if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+				System.err.println("인코더 스레드 풀이 정상적으로 종료되지 않았습니다.");
+			}
+		} catch (InterruptedException e) {
+			executor.shutdownNow();
+		}
 	}
 }
 
