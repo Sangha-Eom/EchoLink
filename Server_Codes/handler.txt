@@ -1,11 +1,3 @@
-Encoder.java
-영상, 음성 프레임을 각각의 큐에서 받아 인코딩
-영상: BufferedImage -> H.264
-음성: Frame -> AAC
-이후 하나의 스트림으로 합쳐(Muxing) 클라이언트에게 UDP 포트로 전송.
-
-
-----
 ClientHandler.java
 클라이언트로 받은 설정값 적용 및 스트리밍 시작
 각 기능 모듈들 관리
@@ -14,8 +6,3 @@ ClientHandler.java
 StreamSessionManager.java
 스트리밍 세션을 관리하는 매니저
 영상, 오디오
-
-
----
-TimestampedFrame.java
-영상, 오디오 밀림 현상 보완 클래스
