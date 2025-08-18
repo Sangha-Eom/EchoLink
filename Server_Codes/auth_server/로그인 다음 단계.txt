@@ -12,3 +12,9 @@
 
 3. 서버 접속 로직 수정:
 스트리밍 서버에 접속할 때, 기존의 ID/PW를 보내는 대신 저장해 둔 JWT를 JSON에 담아 전송하도록 코드를 수정합니다.
+
+------
+
+**secret key 설정
+package com.EchoLink.server.auth.AuthManager의 secretkey 수정
+-> src/main/resources/application.yml과 동일
