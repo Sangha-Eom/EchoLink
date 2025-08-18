@@ -1,6 +1,5 @@
 package com.EchoLink.server.handler;
 
-import java.awt.AWTException;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -22,7 +21,7 @@ public class ClientHandler implements Runnable {
 	private final Socket clientSocket;
 	private final AuthManager authManager;	// AuthManager 인스턴스
 	private StreamSessionManager streamManager;	// 세션 매니저
-	
+
 	public ClientHandler(Socket socket) {
 		this.clientSocket = socket;
 		this.authManager = new AuthManager();	// Handler마다 독립적인 인스턴스 생성
@@ -37,24 +36,25 @@ public class ClientHandler implements Runnable {
 			/*
 			 *  1. 로그인 정보 수신 및 인증
 			 */
-			String loginData = reader.readLine(); 
-			if (loginData == null)	// 클라이언트 비정상 종료
+			String tokenData = reader.readLine(); 
+			if (tokenData == null)	// 클라이언트 비정상 종료
 				return;
 
-			JSONObject loginJson = new JSONObject(loginData);
-			String id = loginJson.getString("id");
-			String password = loginJson.getString("password");
+			JSONObject tokenJson = new JSONObject(tokenData);
+			String jwt = tokenJson.getString("jwt"); // 클라이언트가 보낸 JWT 추출
 
-			if (!authManager.authenticate(id, password)) {	// 인증 실패
+			// authManage의 validateToken 메소드로 검증
+			if (!authManager.validateToken(jwt)) {	// 인증 실패
 				writer.write("FAIL\n");
 				writer.flush();
-				System.out.println("로그인 실패: " + id);
+				System.out.println("로그인(JWT 인증) 실패: " + authManager.getUsernameFromToken(jwt));
 				return;
 			}
 
+			String username = authManager.getUsernameFromToken(jwt);
 			writer.write("OK\n");
 			writer.flush();
-			System.out.println("로그인 성공: " + id);
+			System.out.println("로그인(JWT 인증) 성공: " + username);
 
 
 			/*
@@ -68,7 +68,7 @@ public class ClientHandler implements Runnable {
 			 *  e. port: 클라이언트 UDP 포트 번호
 			 */
 			String configData = reader.readLine();
-			if (configData == null)
+			if (configData == null)		// 설정값 받아오기 실패
 				return;
 
 			JSONObject configJson = new JSONObject(configData);
@@ -77,6 +77,7 @@ public class ClientHandler implements Runnable {
 			int width = configJson.getInt("width");
 			int height = configJson.getInt("height");
 			int port = configJson.getInt("port");
+
 
 			/*
 			 *  3. StreamSessionManager를 통해 스트리밍 세션 시작
@@ -88,6 +89,7 @@ public class ClientHandler implements Runnable {
 					);
 			streamManager.startSession();
 
+
 			/*
 			 *  4. 입력 이벤트 처리 쓰레드
 			 *  InputEventRecieiver를 통해 송/수신
@@ -95,22 +97,26 @@ public class ClientHandler implements Runnable {
 			InputEventReceiver inputReceiver = new InputEventReceiver(clientSocket);
 			new Thread(inputReceiver).start();
 
-		} catch (Exception e) {
+		} 
+		catch (Exception e) {
 			System.err.println("클라이언트 처리 중 오류 발생 (" 
 					+ clientSocket.getInetAddress().getHostAddress() + "): " 
 					+ e.getMessage());
 			e.printStackTrace();	// 상세 오류 정보
-		} finally {
+		} 
+		finally {
 			try {
 				if (clientSocket != null && !clientSocket.isClosed()) {
 					clientSocket.close();
 				}
-	            if (streamManager != null) {
-	                streamManager.stopSession(); // 모든 캡처/인코딩 스레드를 중지시키는 메소드
-	            }
+				if (streamManager != null) {
+					streamManager.stopSession(); // 모든 캡처/인코딩 스레드를 중지시키는 메소드
+				}
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
+		
+		/* end */
 	}
 }
