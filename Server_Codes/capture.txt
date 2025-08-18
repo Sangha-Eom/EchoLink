@@ -6,3 +6,7 @@ AudioDeviceManager.java
 AudioCapture.java
  * 시스템에서 재생되는 오디오를 캡처하여 큐에 추가합니다.
  * FFmpeg를 사용하여 OS별 오디오 장치로부터 소리를 가져옵니다.
+
+----
+ScreenCapture.java
+화면 캡처 후 인코더에게 전송
