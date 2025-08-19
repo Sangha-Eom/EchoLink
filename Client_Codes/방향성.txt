@@ -1,0 +1,5 @@
+클라이언트용 안드로이드 서버 제어 어플
+IDE: Android Studio
+Language: JAVA
+
+-----
