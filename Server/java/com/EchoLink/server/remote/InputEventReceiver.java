@@ -127,7 +127,7 @@ public class InputEventReceiver implements Runnable {
      */
     private void handleBitrateChange(JSONObject eventJson) {
 		int newBitrate = eventJson.getInt("bitrate");
-		if (encoder == null) {
+		if (encoder != null) {
 			encoder.setVideoBitrate(newBitrate);
 		}
 	}
@@ -146,3 +146,4 @@ public class InputEventReceiver implements Runnable {
         }
     }
 }
+
