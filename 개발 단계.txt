@@ -1,6 +1,9 @@
 **다음에 해야할 거
+GitHub Server_Codes를 Server_API로 옮기기
+
 chatGPT
-ㄴ> Server 코드 보완
+ㄴ> Server 코드 보완(1단계: 인증 확인 및 오류 코드 해결)
+
 
 안드로이드 스튜디오 개발
 Gemini -> 3단계: ExoPlayer로 스트림 재생하기
