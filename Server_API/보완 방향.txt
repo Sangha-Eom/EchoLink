@@ -1,0 +1,136 @@
+# 1단계: 설정 외부화 + 안전한 기동(예외/타임아웃/종료훅)
+
+### 왜 필요한가
+
+- 포트, 인증 서버 URL, 폴링 주기 등이 소스에 하드코딩 → 빌드 없이 운영 파라미터 조정 불가
+- 인증 폴링/네트워크 요청에 타임아웃·중단 처리가 부족 → 멈춤/무한대기 위험
+- 서버 종료 시 소켓/스레드 정리 미흡 → 재기동 불안정
+
+### 무엇을 바꿨나
+
+1. **`ServerConfig` 추가** — `echolink-server.properties`·환경변수·시스템 프로퍼티에서 값을 읽는 설정 허브
+2. **`Main` 리팩터링** —
+    - 인증 폴링에 타임아웃/최대 시도/인터럽트 대응
+    - `ServerSocket` 재사용, 백로그, **스레드풀**로 클라이언트 처리
+    - **종료 훅**으로 소켓/스레드풀 정리
+3. **(선택) 로깅 의존성 스니펫** — SLF4J/Logback 추가(원하면 적용)
+
+### 적용 파일(바로 사용 가능)
+
+- 새 파일: `com/EchoLink/server/config/ServerConfig.java`
+- 교체 파일: `com/EchoLink/server/Main.java`
+- 예시 설정: `echolink-server.properties`
+- Gradle 스니펫: `build.gradle.snippet.txt`
+
+patch_step1.zip 다운로드
+
+### 적용 방법
+
+1. `Server/lib/src/main/java/` 경로에 맞춰 `ServerConfig.java`와 `Main.java`를 교체/추가
+2. 실행 디렉터리에 `echolink-server.properties` 배치(없어도 기본값으로 동작)
+3. 원하면 `build.gradle.kts`의 dependencies 블록에 스니펫 병합:
+    
+    ```kotlin
+    implementation("org.slf4j:slf4j-api:2.0.13")
+    runtimeOnly("ch.qos.logback:logback-classic:1.5.6")
+    
+    ```
+    
+4. 빌드/실행:
+    
+    ```
+    -Decholink.loginPort=20805 -Decholink.authServerUrl=http://localhost:8080
+    
+    ```
+    
+    처럼 시스템 프로퍼티로도 덮어쓸 수 있어요.
+    
+
+---
+
+# 2단계(다음): 세션 수명주기/네트워크 탄탄하게
+
+여긴 바로 적용 가능한 **구체 수정 지점**만 짚어둘게요. 원하면 2단계 패치도 만들어 드릴게요.
+
+### `ClientHandler`
+
+- **소켓 타임아웃**: `clientSocket.setSoTimeout(15000)`로 읽기 무한대기 방지
+- **핸드셰이크 검증**: 첫 라인을 JSON으로 받고 `{type:"handshake", jwt, ...}` 형식 검사 → `AuthManager.validateToken()` 실패 시 명시적 에러 송신 후 종료
+- **I/O 인코딩 고정**: `BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))`
+- **finally 자원정리**: `StreamSessionManager.stopSession()` idempotent + 소켓 close
+- **예외 로깅**: 현재 `System.err` → (로깅 도입 시) `logger.warn(...)`/`logger.error(...)`
+
+### `StreamSessionManager`
+
+- **큐 사이즈 상한**(예: 120프레임): 과적재 시 **가장 오래된 프레임 drop** → 지연 누적 방지
+    
+    `LinkedBlockingQueue<>(max)` + `offer(..)` 실패 시 `poll()`로 drop 후 재-`offer`
+    
+- **정지 시퀀스**: `screenCapture.stop()` → `audioCapture.stop()` → 인코더 `stop()` → **스레드 join**으로 깔끔 종료
+- **해상도/프레임률 정책**: 캡처 해상도·fps를 설정에서 읽게 변경(추후 3단계에서 config 연동 권장)
+
+### `InputEventReceiver`
+
+- **좌표 클램프**: 수신 좌표가 화면 경계를 벗어나도 안전하도록 `Math.max/min`로 보정
+- **이중클릭/롱탭 등 제스처**는 서버에서 합성하지 말고 **클라이언트에서 단일 이벤트로 전달** 권장(서버는 단순/결정적)
+
+---
+
+# 3단계(다음): 인코더/캡처 튜닝(저지연, 프레임 드랍 정책)
+
+### `Encoder`
+
+- **레코더 설정 권장값**(UDP 저지연):
+    
+    ```java
+    recorder = new FFmpegFrameRecorder(url, width, height, 2);
+    recorder.setFormat("mpegts");
+    recorder.setInterleaved(true);
+    recorder.setVideoCodec(avcodec.AV_CODEC_ID_H264);
+    recorder.setAudioCodec(avcodec.AV_CODEC_ID_AAC);
+    recorder.setPixelFormat(avutil.AV_PIX_FMT_YUV420P);
+    recorder.setFrameRate(fps);           // config에서 주입
+    recorder.setGopSize(fps * 2);
+    recorder.setVideoBitrate(bps);        // 동적 변경시 synchronized(recorder)
+    recorder.setVideoOption("tune", "zerolatency");
+    recorder.setVideoOption("preset", "ultrafast");
+    recorder.setOption("flush_packets", "1");
+    // UDP URL에 추가: ?pkt_size=1316&max_delay=0&fifo_size=1000000
+    
+    ```
+    
+- **동시 접근 제어**: 현재 오디오/비디오 쓰레드가 `recorder`를 동시 접근 → `synchronized (recorder)`로 이미 막고 있으나, 가능하면 **단일 멀티플렉스 쓰레드**가 타임스탬프 순서대로 한 큐에서 `record()` 호출하는 구조가 더 안전합니다.
+- **드랍 정책**: 큐가 가득 차면 **가장 오래된 프레임 drop**(특히 영상) → 지연이 아니라 화질/프레임 손실 쪽을 택함
+
+### `ScreenCapture`
+
+- **FPS 고정**: 캡처 루프에서 `sleep(1000/fps)`로 상한 설정
+- **부분 업데이트**(차후): 전체 캡처 대신 **영역 diff** 적용 시 대역폭 급감(복잡도 ↑, 다음 단계로)
+
+### `AudioCapture`
+
+- **장치 자동탐색 실패 처리**: `AudioDeviceManager.findSystemOutput()`가 `null`이면 캡처 비활성화하고 로그만 남기기(현재는 경고만)
+- **샘플레이트/채널**도 설정화(에러 줄이는 데 도움이 됨)
+
+---
+
+# 4단계(다음): 보안/비밀키/전송 암호화
+
+- **`AuthManager`의 비밀키 외부화**: 주석대로 하드코딩 금지 → `ServerConfig`에서 불러와 `Keys.hmacShaKeyFor()` 사용
+- **인증 서버 통신 HTTPS**: `AUTH_SERVER_URL`을 `https://`로, 자체 서명시 신뢰 저장소 설정
+- **클라이언트-서버 데이터 채널 암호화**: 현재 UDP 원시 전송은 가로채기 가능 → 중장기적으로 **SRT**/**SRTP(RTP/DTLS)**, 또는 **WebRTC** 채널로 전환 검토
+
+---
+
+## 한눈에 보는 현재 코드의 핵심 보완 포인트
+
+- 하드코딩된 포트/URL/타이밍 → **설정화**
+- 인증 폴링 무한대기 가능 → **타임아웃/최대시도/인터럽트**
+- 세션 종료 시 자원 누수 위험 → **종료 훅 + idempotent stop + join**
+- 인코더 동시 접근 → **싱글 멀티플렉스 or 철저한 동기화**
+- 큐 과적재 시 지연 누적 → **프레임 드랍 정책**
+- 비밀키 하드코딩 → **외부화/회전 가능하게**
+
+---
+
+원하면 2단계(세션/네트워크)와 3단계(인코더/캡처)도 **실제 교체 파일** 형태로 만들어서 이어서 드릴게요. 우선은 1단계 패치를 적용해 보고, 빌드/실행 상태 알려주면 다음 단계로 바로 넘어가겠습니다.
