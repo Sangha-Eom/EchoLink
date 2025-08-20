@@ -1,4 +1,7 @@
 **다음에 해야할 거
+chatGPT
+ㄴ> Server 코드 보완
+
 안드로이드 스튜디오 개발
 Gemini -> 3단계: ExoPlayer로 스트림 재생하기
 
