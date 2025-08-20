@@ -1,0 +1,7 @@
+Main에서 인증 서버(로컬 스프링 부트)와 디바이스 코드 등록 → 폴링으로 JWT 수신 → ServerSocket 열고 ClientHandler로 세션 처리
+
+화면/오디오 캡처(ScreenCapture, AudioCapture) → 인코더(Encoder, FFmpegFrameRecorder) → UDP로 클라이언트 송출
+
+원격 입력 처리(InputEventReceiver)
+
+JWT 검증(AuthManager)
