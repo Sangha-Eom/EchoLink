@@ -5,11 +5,6 @@ Remote Desktop to Android for playing game
 ↕ Socket 통신
 [Java 데스크톱 서버]
 
-1. 데스크톱 서버: 주기적으로 화면 캡처해서 이미지 전송
-2. 모바일 앱: 이미지 수신 후 화면에 표시
-3. 모바일 앱: 터치 이벤트 → 마우스/키보드 명령 전송
-4. 서버: 명령 받아 `Robot`으로 제어
-
 ----
 구현 할 기능
 # Android
@@ -52,7 +47,6 @@ Remote Desktop to Android for playing game
 
 # Desktop
 
-## Socket
 
 서버(데스크탑) ↔ 클라이언트(모바일)
 
@@ -61,7 +55,6 @@ Remote Desktop to Android for playing game
 - 비트레이팅(화질, 이미지 전송, 프레임 제한 등)
 - 소리 출력 넘기기
 
-## Robot
 
 서버로 부터 받은 명령 시행
 
