@@ -1,3 +1,16 @@
 - secret key 설정
 package com.EchoLink.server.auth.AuthManager의 secretkey 수정
 -> src/main/resources/application.yml과 동일
+
+
+- 보완/개선 추천 (실무 관점)
+TTL/만료: 현재 세션은 무기한. sessionId에 **유효기간(예: 3~5분)**을 두고, 만료되면 삭제/404 반환
+activeSessions 값을 record{ email, createdAt, ttl } 구조로 바꾸고, 조회 시 만료 체크
+1회성 사용(Replay 방지): 데스크톱 서버가 sessionId 검증에 성공하면 즉시 삭제
+디바이스 바인딩: 세션 생성 시 본문에 deviceId를 함께 받아서 activeSessions[sessionId] -> { email, deviceId } 저장
+데스크톱 서버는 자기 deviceId와 일치하는 세션만 허용 (다른 PC로의 오용 차단)
+권한 스코프: view-only / control 같은 권한을 세션 정보에 포함
+저장소: 단일 인스턴스 메모리(Map) 대신 Redis로 이전 → 다중 인스턴스/재기동에도 안전
+동시성: HashMap → ConcurrentHashMap
+응답 정보 확장: 실제 접속에 필요한 host/controlPort/udpPort 같은 정보는 이 API가 아니라 별도 POST /api/sessions 응답(ConnectInfo) 로 내려주는 게 UX에 좋음(앞선 설계 3단계 참고)
+보안 강화: 단순 sessionId 대신 짧은 수명의 “세션 전용 JWT” 발급(typ=session, sid, email, deviceId) → 데스크톱 서버가 토큰 서명만으로 로컬 검증 가능(네트워크 왕복 감소)
