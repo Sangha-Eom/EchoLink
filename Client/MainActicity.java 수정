@@ -1,0 +1,47 @@
+// ... imports ...
+import androidx.recyclerview.widget.RecyclerView;
+// ...
+
+public class MainActivity extends AppCompatActivity {
+    // ...
+    private RecyclerView deviceListView; // 기기 목록을 보여줄 리스트뷰
+    // ...
+
+    private void checkTokenAndConnect() {
+        // ...
+        if (this.jwtToken != null) {
+            loginButton.setVisibility(View.GONE);
+            // [수정] 서버에 바로 연결하는 대신, 기기 목록을 가져옴
+            fetchDeviceList();
+        } else {
+            // ...
+        }
+    }
+
+    private void fetchDeviceList() {
+        new Thread(() -> {
+            try {
+                HttpClient client = HttpClient.newHttpClient();
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(AUTH_SERVER_URL + "/api/devices"))
+                        .header("Authorization", "Bearer " + this.jwtToken) // JWT로 본인 인증
+                        .GET()
+                        .build();
+                
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                
+                // 받은 JSON 목록을 파싱하여 화면의 RecyclerView에 표시하는 로직
+                // JSONArray devices = new JSONArray(response.body());
+                // runOnUiThread(() -> updateDeviceListUI(devices));
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    // 사용자가 목록에서 기기를 선택하면, 해당 기기의 IP로 스트리밍 연결 시작
+    private void onDeviceSelected(String deviceIp, int port) {
+        // connectToStreamingServer(deviceIp, port);
+    }
+}
