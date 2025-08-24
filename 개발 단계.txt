@@ -1,11 +1,11 @@
 **다음에 해야할 거
 -GitHub 
 
--chatGPT
+-chatGPT OnGoing
+현재 답변부터 구현
+AuthClient.java의 URL 기능 try catch 구문 구현 부터
 
-
--Gemini Ongoing
-->인증서버 구체적 구현 시작
+-Gemini
 
 
 안드로이드 스튜디오 개발 -> 후순위
