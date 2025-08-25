@@ -8,6 +8,7 @@ import java.io.OutputStreamWriter;
 import java.net.Socket;
 import org.json.JSONObject;
 
+import com.EchoLink.server.auth.AuthClient;
 import com.EchoLink.server.auth.AuthManager;
 import com.EchoLink.server.remote.InputEventReceiver;
 import com.EchoLink.server.stream.Encoder;
@@ -87,14 +88,37 @@ public class ClientHandler implements Runnable {
 
 		JSONObject tokenJson = new JSONObject(tokenData);
 		String clientJwt = tokenJson.getString("jwt");	// 클라이언트가 보낸 JWT
-
-		if (!authManager.validateToken(this.serverJwt, clientJwt)) {	// 인증 실패
+		String sessionID  = tokenJson.optString("sessionID", null); // 세션 ID
+		
+		// 1단계: JWT 서명 검증
+		if (!authManager.validateToken(this.serverJwt, clientJwt)) {
 			writer.write("FAIL\n");
 			writer.flush();
 			System.out.println("로그인(JWT 인증) 실패: " + authManager.getUsernameFromToken(clientJwt));
 			return false;
 		}
-
+		
+	    // 2단계: auth_server 에 세션 검증 요청
+	    if (sessionID != null) {
+	        try {
+	            AuthClient authClient = new AuthClient("http://localhost:8080"); // Auth 서버 주소
+	            String email = authClient.validateSession(sessionID);
+	            if (email == null) {
+	                writer.write("FAIL\n");
+	                writer.flush();
+	                System.out.println("세션 검증 실패: " + sessionID);
+	                return false;
+	            }
+	            System.out.println("세션 검증 성공 (email: " + email + ")");
+	        } catch (Exception e) {
+	            writer.write("FAIL\n");
+	            writer.flush();
+	            System.err.println("세션 검증 중 오류: " + e.getMessage());
+	            return false;
+	        }
+	    }
+		
+	    // 성공 시
 		String username = authManager.getUsernameFromToken(clientJwt);
 		writer.write("OK\n");
 		writer.flush();
