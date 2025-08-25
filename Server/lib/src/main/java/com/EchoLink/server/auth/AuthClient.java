@@ -14,7 +14,6 @@ import org.json.JSONObject;
  * 
  * - 데스크탑 서버가 모바일로부터 받은 sessionID를 인증 서버에 검증 요청
  * - 인증 서버가 유효하면 사용자 이메일 반환
- * - 데스크탑 서버가 해당 이메일을 본인 계정과 매칭한 뒤 스트리밍 연결 허용
  * @author ESH
  */
 public class AuthClient {
@@ -30,39 +29,41 @@ public class AuthClient {
 	}
 
 	/**
+	 * 세션ID를 인증서버에 검증 메소드
 	 * 
-	 * 
-	 * @param sessionId
-	 * @return
-	 * @throws IOException
+	 * @param sessionId 클라이언트가 보낸 세션 ID
+	 * @return 세션 유효 시 이메일,
+	 * 			없을 시 null
 	 */
-	public String validateSession(String sessionId) throws IOException  {
+	public String validateSession(String sessionId) throws URISyntaxException, IOException {
 		
 		String urlStr = authServerBaseUrl + "/api/sessions/" + sessionId;
-		try {
-			URL url = (new URI(urlStr)).toURL();
-			HttpURLConnection connect = (HttpURLConnection) url.openConnection();
-			connect.setRequestMethod("GET");
-		}
-		catch (URISyntaxException e) {
-			e.printStackTrace();
-		}
+	    HttpURLConnection connect = null;
 
-		int status = connect.getResponseCode();
-		if (status == 200) {
-			try (Scanner sc = new Scanner(connect.getInputStream())) {
-				StringBuilder response = new StringBuilder();
-				while (sc.hasNext()) response.append(sc.nextLine());
-				JSONObject json = new JSONObject(response.toString());
-				return json.getString("email");  // 세션에서 이메일 추출
-			}
-		} 
-		else if (status == 404) {
-			return null; // 세션 없음
-		} 
-		else {
-			throw new IOException("Auth server error: " + status);
-		}
+        try {
+            URL url = (new URI(urlStr)).toURL();
+            connect = (HttpURLConnection) url.openConnection();
+            connect.setRequestMethod("GET");
+
+            int status = connect.getResponseCode();
+            if (status == 200) {
+                try (Scanner sc = new Scanner(connect.getInputStream())) {
+                    StringBuilder response = new StringBuilder();
+                    while (sc.hasNext()) response.append(sc.nextLine());
+                    JSONObject json = new JSONObject(response.toString());
+                    return json.getString("email");
+                }
+            } else if (status == 404) {
+                return null; // 세션 없음
+            } else {
+                throw new IOException("Auth server error: " + status);
+            }
+
+        } catch (Exception e) {
+            throw new IOException("세션 검증 실패: " + e.getMessage(), e);
+        } finally {
+            if (connect != null) connect.disconnect();
+        }
 		
 	}
 	
