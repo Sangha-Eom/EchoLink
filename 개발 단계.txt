@@ -6,4 +6,8 @@
 - 데스크탑(Server) 어플로 전환(.exe) <Ongoing>
 ㄴ JavaFX
 
+다음 단계: Gemini Pro 단계별 어플 전환
+- 데스크탑(Server) 어플로 전환(.exe)
 
+~~
+25.08.
