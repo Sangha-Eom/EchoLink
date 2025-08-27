@@ -2,19 +2,8 @@
 ~~
 25.08.27
 - 보안 관련 하드코딩 구현 수정하기(applicaton.yml 통합)
-- 기기 등록 구현 중(Ongoing)
+- 기기 등록 구현 코드
+- 데스크탑(Server) 어플로 전환(.exe) <Ongoing>
+ㄴ JavaFX
 
 
-
-
-
-
-
-
-
-**구현해야 할 것
-- 로그인 기능 구현 ongoing
-  https://www.youtube.com/watch?v=E3Z9346G8mE&list=PLbq5jHjpmq7q3cggEGN8TXnY-P2UbIA4p&index=2
-  yaml 코드 배우기, 인증절차 공부 후 구현
-  Login/auth_server
-  소설 로그인 -> 인증 절차 -> 포트로 소켓 전송
