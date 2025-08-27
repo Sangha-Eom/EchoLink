@@ -1,3 +1,4 @@
+// 수정1번
 // ... imports ...
 import androidx.recyclerview.widget.RecyclerView;
 // ...
@@ -43,5 +44,78 @@ public class MainActivity extends AppCompatActivity {
     // 사용자가 목록에서 기기를 선택하면, 해당 기기의 IP로 스트리밍 연결 시작
     private void onDeviceSelected(String deviceIp, int port) {
         // connectToStreamingServer(deviceIp, port);
+    }
+}
+
+// 수정2번
+// ... 기존 imports ...
+// ✅ [추가] 기기 목록 표시를 위한 RecyclerView 임포트
+import androidx.recyclerview.widget.RecyclerView;
+import org.json.JSONArray;
+// ...
+
+public class MainActivity extends AppCompatActivity {
+    // ... 기존 필드 ...
+    // ✅ [추가] 기기 목록을 보여줄 UI 요소 (activity_main.xml에 추가 필요)
+    private RecyclerView deviceListView; 
+
+    // ... onCreate ...
+
+    private void checkTokenAndConnect() {
+        // ...
+        if (this.jwtToken != null) {
+            loginButton.setVisibility(View.GONE);
+            Toast.makeText(this, "로그인 성공! 연결 가능한 기기를 불러옵니다.", Toast.LENGTH_SHORT).show();
+            // ⚠️ [수정] 서버에 바로 연결하는 대신, 기기 목록을 가져오는 함수 호출
+            fetchDeviceList();
+        } else {
+            loginButton.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /**
+     * ✅ [추가] 인증 서버에 접속하여 연결 가능한 내 기기 목록을 가져옵니다.
+     */
+    private void fetchDeviceList() {
+        new Thread(() -> {
+            try {
+                // Java 11의 기본 HttpClient 사용 (또는 OkHttp/Retrofit 라이브러리 사용 권장)
+                java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+                java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(AUTH_SERVER_URL + "/api/devices"))
+                        .header("Authorization", "Bearer " + this.jwtToken)
+                        .GET()
+                        .build();
+                
+                java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+                
+                if (response.statusCode() == 200) {
+                    JSONArray devices = new JSONArray(response.body());
+                    // UI 스레드에서 기기 목록 UI 업데이트
+                    runOnUiThread(() -> {
+                        // TODO: 파싱한 devices 데이터를 RecyclerView 어댑터에 넘겨 목록을 화면에 표시
+                        // 예: updateDeviceListUI(devices);
+                        Toast.makeText(this, devices.length() + "개의 기기를 찾았습니다.", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    /**
+     * ✅ [수정] 이 메소드는 이제 사용자가 RecyclerView에서 기기를 '선택'했을 때 호출됩니다.
+     */
+    private void connectToStreamingServer(String deviceIp, int port) {
+        new Thread(() -> {
+            try {
+                // ⚠️ [수정] 하드코딩된 IP 대신 파라미터로 받은 deviceIp 사용
+                controlSocket = new Socket(deviceIp, port); 
+                // ... 나머지 연결 로직은 동일 ...
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 }
