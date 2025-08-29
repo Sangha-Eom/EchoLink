@@ -9,50 +9,21 @@ plugins {
     // Apply the java-library plugin for API and implementation separation.
     `java-library`
     
-    // 로그인 기능
-    // Spring Boot
-    java
-	id("org.springframework.boot") version "3.5.4"
-	id("io.spring.dependency-management") version "1.1.7"
+    // Spring Boot 플러그인
+    id("org.springframework.boot") version "3.5.4"
+    id("io.spring.dependency-management") version "1.1.7"
 	
-	// UI 프레임워크
-	// JavaFX UI
-	id("org.openjfx.javafxplugin") version "0.1.0"
+    // UI 프레임워크 (JavaFX)
+    id("org.openjfx.javafxplugin") version "0.1.0"
 	
-	// native 설치 파일(.exe)
-	// jpackage
-	id("org.beryx.jlink") version "3.0.1"
-    
+    // native 설치 파일(.exe) 생성을 위한 jpackage 플러그인
+    id("org.beryx.jlink") version "3.0.1"
 }
 
 // JavaFX 설정 블록
 javafx {
-    version = "21" // 사용할 JavaFX 버전
-    modules = listOf("javafx.controls", "javafx.fxml") // 사용할 모듈
-}
-
-// jlink/jpackage 설정 블록
-jlink {
-    // 애플리케이션 실행에 필요한 Java 모듈을 지정합니다.
-    jpackage {
-    	// 메인 클래스 경로
-        mainClass = "com.EchoLink.auth_server.AppLauncher" 
-
-        // 생성될 설치 파일의 이름을 지정합니다.
-        appName = "EchoLink Server"
-
-        // Windows용 설정
-        win {
-            // 바탕화면 바로가기 생성
-            shortcut = true
-            // 시작 메뉴에 폴더 생성
-            dirChooser = true
-            // 프로그램 메뉴에 추가
-            menu = true
-            // 설치 후 자동 실행
-            postInstall = "bin/$appName.exe"
-        }
-    }
+    version = "21"
+    modules = listOf("javafx.controls", "javafx.fxml")
 }
 
 repositories {
@@ -61,54 +32,42 @@ repositories {
 }
 
 dependencies {
-    // Use JUnit Jupiter for testing.
-    testImplementation(libs.junit.jupiter)
-
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-
-    // This dependency is exported to consumers, that is to say found on their compile classpath.
+    // 기본 라이브러리
     api(libs.commons.math3)
-
-    // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     implementation(libs.guava)
-    
-    // 스트리밍 영상
-    // JavaCV, FFmpeg
+
+    // 스트리밍 영상 (JavaCV, FFmpeg)
     implementation("org.bytedeco:javacv-platform:1.5.9")
     implementation("org.bytedeco:ffmpeg-platform:5.1.2-1.5.9")
 
-    // 데이터 교환용
-    // json
+    // 데이터 교환용 (JSON)
     implementation("org.json:json:20240303")
 	
-    // 로그인 기능
-    // SpringBoot
+    // Spring Boot 관련 라이브러리
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa") // 데이터베이스 연동
+    runtimeOnly("com.h2database:h2") // 개발용 인메모리 데이터베이스
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
-	implementation("org.springframework.boot:spring-boot-starter-security")
-	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
-	implementation("org.springframework.boot:spring-boot-starter-web")
-	implementation("org.springframework.boot:spring-boot-starter-data-jpa") // 데이터베이스 연동
-    runtimeOnly("com.h2database:h2")	// 개발용 인메모리 데이터베이스 H2
-	implementation("org.thymeleaf.extras:thymeleaf-extras-springsecurity6")
-	testImplementation("org.springframework.boot:spring-boot-starter-test")
-	testImplementation("org.springframework.security:spring-security-test")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
 	
-	
-	// 로그인 이후 토큰 발급
-	// JWT (JSON Web Token)
-	implementation("io.jsonwebtoken:jjwt-api:0.12.5")
+    // JWT (JSON Web Token) 라이브러리 (버전 통일)
+    implementation("io.jsonwebtoken:jjwt-api:0.12.5")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5") // Jackson을 사용하여 JSON 처리
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
 	
-	// 로깅
-	// logback
-	implementation("org.slf4j:slf4j-api:2.0.13")
-	runtimeOnly("ch.qos.logback:logback-classic:1.5.6")
+    // 로깅 (Logback)
+    implementation("org.slf4j:slf4j-api:2.0.13")
+    runtimeOnly("ch.qos.logback:logback-classic:1.5.6")
 	
-	// YAML 파일 파싱
-	// SnakeYAML
+    // YAML 파일 파싱 (SnakeYAML)
     implementation("org.yaml:snakeyaml:2.2")
+
+    // 테스트용 라이브러리
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.security:spring-security-test")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -117,7 +76,6 @@ java {
         languageVersion = JavaLanguageVersion.of(21)
     }
 }
-
 
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
