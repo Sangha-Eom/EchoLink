@@ -10,6 +10,7 @@
 3. 로그인 기능 구현(프론트 엔드 요구)
 현재: 앱이 실행되는 동안에만 회원 정보가 임시로 유지. 
 ㄴ (프론트엔드) 로그인 완료 시 Parsec과 같이 연결 할 기기들이 뜨는 창으로 이동
+(1)
 근본적인 문제 및 추천 해결책
 사실 위 오류들을 모두 해결하더라도, 현재의 접근 방식에는 더 근본적인 문제가 있습니다.
 현재 코드는 Google API 사용을 위한 Credential을 얻는 과정이며, 우리가 최종적으로 필요한 Firebase의 ID Token을 직접 반환하지 않습니다.
@@ -25,6 +26,9 @@ Credential 객체에서 Firebase 인증에 필요한 토큰을 추출하고 교�
 6. (JavaFX): 최종적으로 FirebaseAuth.getInstance().signInWithCustomToken(customToken)을 호출하여 JavaFX 앱에서 Firebase 로그인을 완료하고, 
   이 때 발급되는 **Firebase ID Token**을 onLoginSuccess로 전달합니다.
 
+(2)
+LoginController.java
+TODO: 이 googleIdToken을 사용하여 Firebase Custom Token을 요청하고 로그인하는 로직 구현
 
 
 
