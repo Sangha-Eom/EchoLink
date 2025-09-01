@@ -52,3 +52,10 @@
 (서버): 검증이 성공하면, Admin SDK는 해당 사용자에 대한 Firebase Custom Token을 생성하여 클라이언트(JavaFX)에게 다시 돌려줍니다.
 
 (JavaFX): 최종적으로 FirebaseAuth.getInstance().signInWithCustomToken(customToken)을 호출하여 JavaFX 앱에서 Firebase 로그인을 완료하고, 이 때 발급되는 **Firebase ID Token**을 onLoginSuccess로 전달합니다.
+
+~~
+25.09.01
+
+
+다음 단계:
+로그인 성공 후의 메인 화면 기능을 구체화
