@@ -1,96 +1,51 @@
-package com.EchoLink.auth_server.service;
+package com.EchoLink.auth_server.controller;
 
-import com.google.api.core.ApiFuture;
-import com.google.cloud.firestore.Firestore;
-import com.google.cloud.firestore.QueryDocumentSnapshot;
-import com.google.cloud.firestore.QuerySnapshot;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseAuthException;
-import com.google.firebase.cloud.FirestoreClient;
-import org.springframework.stereotype.Service;
+import com.google.firebase.auth.FirebaseToken;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
+
+import com.EchoLink.auth_server.service.FirebaseAuthService;
 
 /**
- * 기기 코드 관리 서비스 클래스
  * 
- * 서버(데스크톱) 등록 관리
- * Firebase 데이터베이스 사용
- * @author ESH
  */
-@Service
-public class DeviceService {
+@RestController
+@RequestMapping("/api/firebase")
+public class FirebaseController {
 
+    private final FirebaseAuthService firebaseAuthService;
 
-    private final Firestore db;
-
-    public DeviceService() {
-        this.db = FirestoreClient.getFirestore();
+    public FirebaseController(FirebaseAuthService firebaseAuthService) {
+        this.firebaseAuthService = firebaseAuthService;
     }
 
-
     /**
-     * 특정 사용자의 온라인 상태인 기기 목록을 Firestore에서 조회합니다.
-     * @param userEmail 사용자의 이메일
-     * @return 온라인 기기 목록
-     * @throws FirebaseAuthException 
+     * 클라이언트로부터 Google ID 토큰을 받아 Firebase Custom Token을 발급합니다.
+     * @param idToken Google 로그인 후 받은 ID Token
+     * @return 생성된 Firebase Custom Token
      */
-    public List<Map<String, Object>> getOnlineDevicesForUser(String userEmail) throws ExecutionException, InterruptedException, FirebaseAuthException {
-        String uid = FirebaseAuth.getInstance().getUserByEmail(userEmail).getUid();
-
-        ApiFuture<QuerySnapshot> future = db.collection("users").document(uid)
-                                            .collection("devices")
-                                            .whereEqualTo("status", "ONLINE")
-                                            .get();
-
-        List<QueryDocumentSnapshot> documents = future.get().getDocuments();
-        List<Map<String, Object>> onlineDevices = new ArrayList<>();
-        for (QueryDocumentSnapshot document : documents) {
-            onlineDevices.add(document.getData());
+    @PostMapping("/signin")
+    public ResponseEntity<?> createCustomToken(@RequestBody Map<String, String> payload) {
+        String idToken = payload.get("idToken");
+        if (idToken == null) {
+            return ResponseEntity.badRequest().body("ID token is missing.");
         }
-        return onlineDevices;
-    }
 
-    /**
-     * 기기의 상태를 업데이트합니다 (Heartbeat).
-     * @param userEmail 사용자의 이메일
-     * @param deviceName 기기 이름
-     * @param ipAddress IP 주소
-     * @throws FirebaseAuthException 
-     */
-    public void updateDeviceStatus(String userEmail, String deviceName, String ipAddress) throws ExecutionException, InterruptedException, FirebaseAuthException {
-        String uid = FirebaseAuth.getInstance().getUserByEmail(userEmail).getUid();
-        var deviceDocRef = db.collection("users").document(uid)
-                             .collection("devices").document(deviceName);
+        try {
+            // 1. 수신된 Google ID 토큰 검증
+            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+            String uid = decodedToken.getUid();
 
-        Map<String, Object> deviceData = new HashMap<>();
-        deviceData.put("deviceName", deviceName);
-        deviceData.put("ipAddress", ipAddress);
-        deviceData.put("status", "ONLINE");
-        deviceData.put("lastSeen", System.currentTimeMillis());
+            // 2. 검증된 사용자 UID로 Firebase Custom Token 생성
+            String customToken = firebaseAuthService.createFirebaseCustomToken(uid);
 
-        // 문서가 존재하면 업데이트, 없으면 생성 (upsert)
-        deviceDocRef.set(deviceData, com.google.cloud.firestore.SetOptions.merge()).get();
-    }
+            return ResponseEntity.ok(Map.of("customToken", customToken));
 
-    /**
-     * 특정 기기의 상태를 OFFLINE으로 변경합니다.
-     * @param userEmail 사용자의 이메일
-     * @param deviceName 기기 이름
-     * @throws FirebaseAuthException 
-     */
-    public void setDeviceOffline(String userEmail, String deviceName) throws ExecutionException, InterruptedException, FirebaseAuthException {
-        String uid = FirebaseAuth.getInstance().getUserByEmail(userEmail).getUid();
-        var deviceDocRef = db.collection("users").document(uid)
-                             .collection("devices").document(deviceName);
-
-        if (deviceDocRef.get().get().exists()) {
-            deviceDocRef.update("status", "OFFLINE").get();
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body("Token verification failed: " + e.getMessage());
         }
     }
-    
 }
