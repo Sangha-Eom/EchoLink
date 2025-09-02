@@ -39,6 +39,7 @@ dependencies {
     // 스트리밍 영상 (JavaCV, FFmpeg)
     implementation("org.bytedeco:javacv-platform:1.5.9")
     implementation("org.bytedeco:ffmpeg-platform:5.1.2-1.5.9")
+    implementation("org.bytedeco:srt-platform:1.5.3-1.5.9")
 
     // 데이터 교환용 (JSON)
     implementation("org.json:json:20240303")
