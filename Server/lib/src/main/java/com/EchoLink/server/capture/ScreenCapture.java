@@ -3,6 +3,7 @@ package com.EchoLink.server.capture;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import com.EchoLink.server.stream.TimestampedFrame;
 
@@ -37,58 +38,46 @@ public class ScreenCapture implements Runnable {
 		try {
 			robot = new Robot();
 
-		} catch (AWTException e) {
-            System.err.println("Robot 객체 생성에 실패했습니다. GUI 환경이 아닐 수 있습니다.");
-            e.printStackTrace();
-            return; // run 메소드 종료
+		} 
+		catch (AWTException e) {
+			System.err.println("Robot 객체 생성에 실패했습니다. GUI 환경이 아닐 수 있습니다.");
+			e.printStackTrace();
+			return; // run 메소드 종료
 		}
 
 		/*
 		 * 화면 캡처
 		 */
-		while (running) {
-			long startTime = System.currentTimeMillis();
+		long nextFrameTime = System.nanoTime();	// FPS 제어 변수
 
+		while (running) {
 			try {
 				BufferedImage screenshot = robot.createScreenCapture(captureArea);
 				// 캡처한 이미지와 현재 시간을 TimestampedFrame으로 감싸서 큐에 추가
 				frameQueue.put(new TimestampedFrame<>(screenshot, System.nanoTime()));
-			}
+
+				// 다음 프레임 시간까지 정확히 대기
+				nextFrameTime += frameIntervalMillis * 1_000_000; // ms를 ns로 변환하여 더함
+				long sleepTimeNs = nextFrameTime - System.nanoTime();
+
+				if (sleepTimeNs > 0) {
+					TimeUnit.NANOSECONDS.sleep(sleepTimeNs);
+				}
+
+			} 
 			catch (InterruptedException e) {
 				running = false;
 				Thread.currentThread().interrupt(); 	// 스레드 중단 상태를 다시 설정
 				System.out.println("화면 캡처 스레드가 중단되었습니다.");
 				break;
-			}
+			} 
 			catch (Exception e) {
 				System.err.println("화면 캡처 중 예상치 못한 오류 발생: " + e.getMessage());
-				// 오류 발생 시 잠시 대기 후 계속 시도
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException ie) {
-					running = false;
-					Thread.currentThread().interrupt();
-				}
 			}
-
-
-			/*
-			 * 지연 시간 조정
-			 */
-			long elapsed = System.currentTimeMillis() - startTime;
-			long sleepTime = frameIntervalMillis - elapsed;
-			if (sleepTime > 0) {
-				try {
-					Thread.sleep(sleepTime);
-				} catch (InterruptedException e) {
-					running = false;
-					Thread.currentThread().interrupt();
-				}
-			}
-
 		}
 
 	}
+
 
 	/**
 	 * 외부에서 캡처 쓰레드 중지
