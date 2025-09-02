@@ -5,6 +5,8 @@ import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -75,43 +77,15 @@ public class Encoder implements Runnable {
 		// 오디오 채널(2=스테레오) 명시적 설정
 		try {
 
-			recorder = new FFmpegFrameRecorder(outputUrl, width, height, 2);
-
-			/*
-			 *  --- 비디오 설정 ---
-			 */
-			// H.264 코덱 설정
-			// 추후 안드로이드에서 설정 가능하도록 설정(비트레이트, 프레임 등)
-			recorder.setFormat("flv"); 				// UDP에는 flv가 안정적
-			recorder.setVideoCodec(avcodec.AV_CODEC_ID_H264);		// H.264 표준 인코딩
-			recorder.setFrameRate(frameRate);		// ★FPS 설정
-			recorder.setVideoBitrate(videoBitrate); // ★비트레이트 설정
-			recorder.setPixelFormat(avutil.AV_PIX_FMT_YUV420P); 	// H.264 표준 픽셀 포맷
-
-			// Optional: 인코딩 지연 줄이기 위한 설정(딜레이 최소화)
-			recorder.setVideoOption("tune", "zerolatency");
-			recorder.setVideoOption("preset", "ultrafast");
-
-
-			/*
-			 *  --- 오디오 설정 ---
-			 */
-			recorder.setAudioCodec(avcodec.AV_CODEC_ID_AAC); // AAC 코덱 사용
-			recorder.setSampleRate(44100); 					// AudioCapture와 동일하게 설정
-			recorder.setAudioBitrate(192000);				 // 192kbps
-
-
-			// 인코더 실행
-			System.out.println("인코더 시작 (영상+음성): " + outputUrl);
-			recorder.start();
-
+			// 인코더 초기화
+			initializeRecorder(outputUrl);
 
 			/*
 			 * 쓰레드 시작
 			 */
 			// 영상과 음성을 별도의 스레드에서 병렬로 처리하여 서로를 방해하지 않도록 함.
 			Java2DFrameConverter converter = new Java2DFrameConverter();
-			
+
 			// 영상, 오디오 쓰레드
 			executor.submit(() -> processVideoFrames(recorder, converter));	// 영상 쓰레드 시작
 			executor.submit(() -> processAudioFrames(recorder));			// 오디오 쓰레드 시작
@@ -123,7 +97,8 @@ public class Encoder implements Runnable {
 				Thread.sleep(100);
 			}
 
-		} catch (Exception e) {
+		} 
+		catch (Exception e) {
 			e.printStackTrace();
 		}
 		finally {
@@ -132,6 +107,66 @@ public class Encoder implements Runnable {
 		}
 
 	}
+
+	/**
+	 * 인코더 초기화
+	 * 
+	 * 하드웨어 가속을 우선으로 하는 인코더 초기화 메소드
+	 * NVIDIA(nvenc) -> Intel(qsv) -> CPU(libx264) 순서로 시도.
+	 * 
+	 * @param outputUrl 스트리밍을 보낼 대상 URL
+	 * @throws org.bytedeco.javacv.FFmpegFrameRecorder.Exception 모든 인코더 초기화 실패 시 예외 발생
+	 */
+	private void initializeRecorder(String outputUrl) throws org.bytedeco.javacv.FFmpegFrameRecorder.Exception {
+
+		// 시도할 코덱 목록. h264_nvenc(NVIDIA), h264_qsv(Intel), libx264(CPU)
+		List<String> videoCodecs = Arrays.asList("h264_nvenc", "h264_qsv", "libx264");
+
+		for (String codec : videoCodecs) {
+			try {
+				System.out.println("[Encoder] '" + codec + "' 코덱으로 인코더 초기화를 시도합니다...");
+				recorder = new FFmpegFrameRecorder(outputUrl, width, height, 2);
+
+				/*
+				 * --- 비디오 설정 ---
+				 */
+				recorder.setFormat("flv");			// UDP에는 flv가 안정적
+				recorder.setVideoCodecName(codec);  // 코덱 이름으로 설정
+				recorder.setFrameRate(frameRate);	// FPS 설정
+				recorder.setVideoBitrate(videoBitrate);	// 비트레이트 설정
+				recorder.setPixelFormat(avutil.AV_PIX_FMT_YUV420P);	// H.264 표준 픽셀 포맷
+
+				// 코덱별 최적화 옵션 설정
+				if ("libx264".equals(codec)) {
+					recorder.setVideoOption("preset", "ultrafast");
+				}
+				recorder.setVideoOption("tune", "zerolatency");
+
+
+				/*
+				 * --- 오디오 설정 ---
+				 */
+				recorder.setAudioCodec(avcodec.AV_CODEC_ID_AAC);	// AAC 코덱 사용
+				recorder.setSampleRate(44100);		// AudioCapture와 동일하게 설정
+				recorder.setAudioBitrate(192000);	// 192kbps
+
+
+				// 인코더 실행
+				recorder.start();
+				System.out.println("[Encoder] ✔️ 성공: '" + codec + "' 코덱으로 인코더를 시작합니다.");
+				return; // 성공 시 메소드 종료
+
+			} catch (org.bytedeco.javacv.FFmpegFrameRecorder.Exception e) {
+				System.err.println("[Encoder] ❌ 실패: '" + codec + "' 코덱 초기화 실패. 다음 코덱을 시도합니다. (오류: " + e.getMessage() + ")");
+				if (recorder != null) {
+					recorder.release();
+				}
+			}
+		}
+		// 모든 코덱 시도 후에도 실패하면 예외 발생
+		throw new org.bytedeco.javacv.FFmpegFrameRecorder.Exception("사용 가능한 H.264 인코더(nvenc, qsv, libx264)를 찾을 수 없습니다.");
+	}
+
 
 	/**
 	 * 영상 처리 쓰레드
@@ -201,17 +236,33 @@ public class Encoder implements Runnable {
 
 	/** 
 	 * 인코더 종료
+	 * @throws org.bytedeco.javacv.FFmpegFrameRecorder.Exception 
 	 */
 	public void stop() {
 		running = false;
 		executor.shutdownNow();
 		try {
+			// 스레드 풀이 종료될 때까지 최대 5초 대기
 			if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
 				System.err.println("인코더 스레드 풀이 정상적으로 종료되지 않았습니다.");
 			}
 		} catch (InterruptedException e) {
+			// 대기 중 인터럽트가 발생하면 다시 한번 종료 시도
+			System.err.println("스레드 풀 종료 대기 중 인터럽트 발생.");
 			executor.shutdownNow();
 		}
+
+		try {
+			// 레코더 중지 및 리소스 해제
+			if (recorder != null) {
+				recorder.stop();
+				recorder.release();
+			}
+		} catch (org.bytedeco.javacv.FFmpegFrameRecorder.Exception e) {
+			// recorder.stop()에서 발생하는 예외만 별도로 처리
+			System.err.println("레코더 종료 중 오류 발생: " + e.getMessage());
+		}
+
 	}
 }
 
