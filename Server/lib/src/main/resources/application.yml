@@ -4,6 +4,10 @@
 # 32글자 이상
 jwt:
   secret: C0MR4qiaubVrckcgmAQ1iEoBI5KPPPyn
+  # Access Token 유효 시간(30분)
+  access-token-expiration-ms: 1800000
+  # Refresh Token 유효 시간(30일)
+  refresh-token-expiration-ms: 2592000000
 
 # Spring Boot 웹 서버의 기본 포트: 8080
 server:
