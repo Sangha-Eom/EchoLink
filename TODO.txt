@@ -1,37 +1,55 @@
 1. application.yml을 비밀 처리 하여 어플 다운 시 딸려 나가지 않도록 수정.
 
+~~~~
 2. 데스크탑 어플로 패키징(.exe) (서버 구축 마지막에)
 ㄴ 서버와 인증서버 한 번에 실행하도록 구조 개편
 ㄴ 나중에 해야할 사항 
   ㄴ 2단계: Fat JAR 빌드(사지방 CMD 이슈)
   ㄴ 4단계: 네이티브 빌드(.exe) (사지방CMD 이슈)
 
-
+~~~~
 3. 로그인 기능 구현(프론트 엔드 요구)
 현재: 앱이 실행되는 동안에만 회원 정보가 임시로 유지. 
 ㄴ (프론트엔드) 로그인 완료 시 Parsec과 같이 연결 할 기기들이 뜨는 창으로 이동
-(1)
-근본적인 문제 및 추천 해결책
-사실 위 오류들을 모두 해결하더라도, 현재의 접근 방식에는 더 근본적인 문제가 있습니다.
-현재 코드는 Google API 사용을 위한 Credential을 얻는 과정이며, 우리가 최종적으로 필요한 Firebase의 ID Token을 직접 반환하지 않습니다.
 
-Credential 객체에서 Firebase 인증에 필요한 토큰을 추출하고 교환하는 과정은 매우 복잡합니다. 따라서 더 간단하고 표준적인 Firebase Custom Token 방식으로 전환하는 것을 강력히 권장합니다.
-
-추천 흐름:
-1. (JavaFX): 이전 단계의 코드(flow.newTokenRequest...)를 통해 Google의 Credential을 성공적으로 받아옵니다.
-2. (JavaFX): 이 Credential에서 Google 사용자의 **ID Token**을 추출합니다.
-3. (JavaFX → 서버): 이 **Google ID Token**을 Spring Boot 서버의 특정 API 엔드포인트(예: /api/auth/firebase-signin)로 전송합니다.
-4. (서버): 서버는 Firebase Admin SDK를 사용하여 수신된 Google ID Token이 유효한지 검증합니다.
-5. (서버): 검증이 성공하면, Admin SDK는 해당 사용자에 대한 Firebase Custom Token을 생성하여 클라이언트(JavaFX)에게 다시 돌려줍니다.
-6. (JavaFX): 최종적으로 FirebaseAuth.getInstance().signInWithCustomToken(customToken)을 호출하여 JavaFX 앱에서 Firebase 로그인을 완료하고, 
-  이 때 발급되는 **Firebase ID Token**을 onLoginSuccess로 전달합니다.
-
-(2)
-LoginController.java
-TODO: 이 googleIdToken을 사용하여 Firebase Custom Token을 요청하고 로그인하는 로직 구현
-
-
-
+~~~~~
 4. 클라이언트 구현 (서버 구축 후)
 현재: 서버 구축 후 한번에 시작
 ㄴ MainActivity.java를 토대로 시작
+
+~~~~
+5. 스트리밍 품질 및 안정성 고도화 (서버)
+※ 지연 시간을 최소화
+1) 하드웨어 가속 인코딩 도입: 현재 CPU 기반의 H.264 인코딩은 CPU 점유율이 높을 수밖에 없습니다. NVIDIA의 NVENC, Intel의 QSV 같은 GPU 하드웨어 가속을 사용하면 CPU 부담을 획기적으로 줄여, 게임과 스트리밍 서버가 동시에 실행되더라도 끊김 없는 환경을 만들 수 있습니다. JavaCV의 FFmpeg 옵션에서 활성화할 수 있습니다.
+
+2) 전송 프로토콜 업그레이드 (UDP → SRT/WebRTC): 순수 UDP는 빠르지만 패킷 손실에 취약합니다. 불안정한 네트워크(예: Wi-Fi, LTE) 환경에서의 안정성을 위해 다음 프로토콜 도입을 강력히 권장합니다.
+  - SRT (Secure Reliable Transport): 
+    UDP의 저지연성은 유지하면서 패킷 손실 복구, 지터 방지 기능을 제공하여 훨씬 안정적인 스트리밍이 가능합니다.
+
+  - WebRTC: 
+    장기적으로는 NAT Traversal, 보안 등이 통합된 WebRTC가 훌륭한 대안이 될 수 있습니다.
+
+3) 동적 비트레이트 자동화: 
+    현재 구현된 비트레이트 변경 기능을 자동화하는 단계입니다. 
+    클라이언트로부터 주기적으로 네트워크 상태(패킷 손실률, RTT)를 피드백 받아, 서버가 스스로 비트레이트를 조절하게 만들면 최적의 화질과 안정성을 동시에 확보할 수 있습니다.
+
+4) 저지연 인코더 옵션 활성화: Encoder.java에서 이미 계획하신 대로 FFmpeg의 저지연 옵션들을 반드시 활성화해야 합니다. 이는 지연 시간 감소에 직접적인 영향을 줍니다.
+  - setVideoOption("tune", "zerolatency")
+  - setVideoOption("preset", "ultrafast")
+  - setOption("flush_packets", "1")
+
+~~~~
+6. 보안 및 편의 기능 강화
+1) Refresh Token 도입: 현재 Access Token(JWT)은 유효 기간이 짧아 만료 시 다시 로그인해야 합니다. Refresh Token을 함께 발급하여 Access Token이 만료되었을 때 클라이언트가 자동으로 새로운 토큰을 재발급받도록 하면 사용자 경험이 크게 향상됩니다.
+
+2) 보안 강화:
+  application.yml과 serviceAccountKey.json 같은 민감한 설정 파일이 절대로 공개 저장소에 올라가지 않도록 각별히 주의해야 합니다.
+  API 문서화: Swagger(OpenAPI) 같은 도구를 이용해 인증 서버의 API를 문서화해두면, 향후 클라이언트 확장이나 협업 시 큰 도움이 됩니다.
+
+
+
+
+
+
+
+
