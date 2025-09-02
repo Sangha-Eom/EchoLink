@@ -35,30 +35,21 @@
 다음 단계: 
 1. 서버 코드 올리기
 2. Gemini pro 단계 중 LoginController.java 오류 수정
+3. 표준적인 Firebase Custom Token 방식으로 전환
 
-3.아래 흐름대로 로그인 토큰 인증 방식 전환
-표준적인 Firebase Custom Token 방식으로 전환하는 것을 강력히 권장합니다.
-
-추천 흐름:
-
-(JavaFX): 이전 단계의 코드(flow.newTokenRequest...)를 통해 Google의 Credential을 성공적으로 받아옵니다.
-
-(JavaFX): 이 Credential에서 Google 사용자의 **ID Token**을 추출합니다.
-
-(JavaFX → 서버): 이 **Google ID Token**을 Spring Boot 서버의 특정 API 엔드포인트(예: /api/auth/firebase-signin)로 전송합니다.
-
-(서버): 서버는 Firebase Admin SDK를 사용하여 수신된 Google ID Token이 유효한지 검증합니다.
-
-(서버): 검증이 성공하면, Admin SDK는 해당 사용자에 대한 Firebase Custom Token을 생성하여 클라이언트(JavaFX)에게 다시 돌려줍니다.
-
-(JavaFX): 최종적으로 FirebaseAuth.getInstance().signInWithCustomToken(customToken)을 호출하여 JavaFX 앱에서 Firebase 로그인을 완료하고, 이 때 발급되는 **Firebase ID Token**을 onLoginSuccess로 전달합니다.
 
 ~~
 25.09.01
-
+표준적인 Firebase Custom Token 방식으로 전환
 
 다음 단계:
 1. 깃허브 서버 코드 올리기
-2. 
-3. 새로운 채팅으로 넘어가기(요약본 요청 후)
-4. 로그인 성공 후의 메인 화면 기능을 구체화
+2. 새로운 채팅으로 넘어가기(요약본 요청 후)
+3. 로그인 성공 후의 메인 화면 기능을 구체화
+
+~~
+25.09.02
+로그인 성공 후의 메인 화면 기능을 구체화
+
+다음 단계:
+
