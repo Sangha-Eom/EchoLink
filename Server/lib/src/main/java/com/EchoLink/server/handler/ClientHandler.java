@@ -6,9 +6,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
+
+import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.EchoLink.server.auth.AuthClient;
 import com.EchoLink.server.auth.AuthManager;
 import com.EchoLink.server.config.ServerConfig;
 import com.EchoLink.server.remote.InputEventReceiver;
@@ -29,7 +32,10 @@ public class ClientHandler implements Runnable {
 	private final String serverJwt;			// 서버로부터 발급받은 원본 JWT
 	private StreamSessionManager streamManager;	// 스트리밍 세션 매니저
 	private final AuthManager authManager;		// 인증 관리
-	
+
+	// 연결 타임아웃 상수 (15초)
+	private static final int SOCKET_TIMEOUT_MS = 15000;
+
 	/**
 	 * 생성자
 	 * @param socket 연결
@@ -42,139 +48,167 @@ public class ClientHandler implements Runnable {
 		this.authManager = new AuthManager(config.getJwtSecret());
 	}
 
+
 	@Override
 	public void run() {
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-				BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()))
-			) {
-			
-			// 1. 클라이언트 로그인 인증 처리
-			if (!handleAuthentication(reader, writer))
-				return;	// 인증 실패 시 즉시 종료.
-			
+		try {
+
+			clientSocket.setSoTimeout(SOCKET_TIMEOUT_MS); // 읽기 타임아웃 설정
+
+			// UTF-8 인코딩을 명시하여 문자 깨짐 방지
+			BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
+			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8));
+
+
+			// 1. 클라이언트 로그인 인증 처리 (handshake)
+			if (!handleAuthentication(reader, writer)) {
+				System.err.println("인증 실패: " + clientSocket.getInetAddress().getHostAddress());
+				return;
+			}
 
 			// 2. 스트리밍 세션 설정 및 시작
-			if (!setupAndStartStreamingSession(reader))
-				return; // 세션 설정 실패 시 종료
+			if (!setupAndStartStreamingSession(reader)) {
+				System.err.println("스트리밍 세션 설정 실패: " + clientSocket.getInetAddress().getHostAddress());
+				return;
+			}
 
-			
-			// 3. 원격 입력 처리 시작
+			// 3. 원격 입력 처리 시작 (이후 모든 통신은 InputEventReceiver가 담당)
+			// 	+ ClientHandler는 더 이상 소켓을 직접 읽지 않으므로 타임아웃 해제.
+			clientSocket.setSoTimeout(0);
 			startInputReceiver();
 
 		} 
-		catch (Exception e) {
-			System.err.println("클라이언트 처리 중 오류 발생 (" 
-					+ clientSocket.getInetAddress().getHostAddress() + "): " 
+		catch (SocketTimeoutException e) {
+			// 타임아웃 예외 처리
+			System.err.println("클라이언트 타임아웃 (" + SOCKET_TIMEOUT_MS + "ms): "
+					+ clientSocket.getInetAddress().getHostAddress() + ". 연결을 종료합니다.");
+		} 
+		catch (IOException e) {
+			// 네트워크 오류 또는 클라이언트의 갑작스러운 연결 종료 처리
+			System.err.println("네트워크 오류 발생 ("
+					+ clientSocket.getInetAddress().getHostAddress() + "): "
 					+ e.getMessage());
-			e.printStackTrace();	// 상세 오류 정보
+		} 
+		catch (Exception e) {
+			// 그 외 예상치 못한 모든 예외 처리
+			System.err.println("클라이언트 처리 중 예외 발생 ("
+					+ clientSocket.getInetAddress().getHostAddress() + "): "
+					+ e.getMessage());
+			e.printStackTrace(); // 상세 오류 정보
 		} 
 		finally {
+			// 어떤 상황에서든 cleanupSession이 호출되도록 보장
 			cleanupSession();
 		}
-		
 	}
 
 
 	/** 
 	 * 1. 클라이언트의 로그인 정보(JWT) 수신 및 인증
+	 * 
+	 * 1단계: JWT 서명 검증
+	 * 2단계: 서버와 클라리언트의 사용자 계정 일치 확인
 	 * @return 인증 성공 시 true, 실패 시 false
 	 */
 	private boolean handleAuthentication(BufferedReader reader, BufferedWriter writer) throws IOException {
-		
-		String tokenData = reader.readLine();
-		if (tokenData == null) 
-			return false;
 
-		JSONObject tokenJson = new JSONObject(tokenData);
-		String clientJwt = tokenJson.getString("jwt");	// 클라이언트가 보낸 JWT
-		
-		// 1단계: JWT 서명 검증
-		if (!authManager.validateToken(this.serverJwt, clientJwt)) {
-			writer.write("FAIL\n");
+		try {
+
+			String handshakeData = reader.readLine();
+			if (handshakeData == null) {
+				System.err.println("핸드셰이크 데이터 수신 실패 (클라이언트가 즉시 연결 종료).");
+				return false;
+			}
+
+			// 수신한 데이터가 유효한 JSON인지, 'jwt' 키를 포함하는지 명시적으로 검증
+			JSONObject tokenJson = new JSONObject(handshakeData);
+			if (!tokenJson.has("jwt")) {
+				writer.write("FAIL: JWT token not found in handshake.\n");
+				writer.flush();
+				System.err.println("로그인 실패: 핸드셰이크에 JWT 토큰이 없습니다.");
+				return false;
+			}
+			String clientJwt = tokenJson.getString("jwt");	// 클라이언트가 보낸 JWT
+
+			// 1단계: JWT 서명 검증
+			if (!authManager.validateToken(this.serverJwt, clientJwt)) {
+				writer.write("FAIL\n");
+				writer.flush();
+				System.out.println("로그인 실패(토큰 무효): " + authManager.getUsernameFromToken(clientJwt));
+				return false;
+			}
+
+			// 2단계: 서버와 클라이언트의 사용자 계정(이메일) 일치 확인
+			String serverUserEmail = authManager.getUsernameFromToken(this.serverJwt);
+			String clientUserEmail = authManager.getUsernameFromToken(clientJwt);
+
+			if (!serverUserEmail.equals(clientUserEmail)) {
+				writer.write("FAIL: User mismatch.\n");
+				writer.flush();
+				System.out.println("로그인 실패: 서버와 클라이언트의 사용자 계정이 일치하지 않습니다.");
+				System.out.println("서버 계정: " + serverUserEmail + ", 클라이언트 계정: " + clientUserEmail);
+				return false;
+			}
+
+			// 모든 인증 성공
+			writer.write("OK\n");
 			writer.flush();
-			System.out.println("로그인(JWT 인증) 실패: " + authManager.getUsernameFromToken(clientJwt));
+			System.out.println("로그인 인증 성공: " + clientUserEmail);
+			return true;
+		}
+		catch (JSONException e) {
+			// 클라이언트가 비정상적인 데이터(JSON 형식이 아님)를 보냈을 경우
+			writer.write("FAIL: Invalid handshake format.\n");
+			writer.flush();
+			System.err.println("로그인 실패: 클라이언트가 비정상적인 핸드셰이크 데이터를 전송했습니다. " + e.getMessage());
 			return false;
 		}
-		
-	    // 2단계: 서버가 가진 JWT와 클라이언트의 JWT에서 각각 이메일을 추출하여 비교
-	    String serverUserEmail = authManager.getUsernameFromToken(this.serverJwt);
-	    String clientUserEmail = authManager.getUsernameFromToken(clientJwt);
-
-	    if (serverUserEmail == null || clientUserEmail == null || !serverUserEmail.equals(clientUserEmail)) {
-	        writer.write("FAIL\n");
-	        writer.flush();
-	        System.out.println("로그인 실패: 서버와 클라이언트의 사용자 계정이 일치하지 않습니다.");
-	        System.out.println("서버 계정: " + serverUserEmail + ", 클라이언트 계정: " + clientUserEmail);
-	        return false;
-	    }
-		
-		
-	    // 2.5단계: 인증서버에 세션 아이디(이메일, 사용자 이름 등) 검증
-		String sessionID = tokenJson.optString("sessionID", null);
-	    if (sessionID != null) {
-	        try {
-	            AuthClient authClient = new AuthClient("http://localhost:8080"); // Auth 서버 주소
-	            String email = authClient.validateSession(sessionID);
-	            if (email == null) {
-	                writer.write("FAIL\n");
-	                writer.flush();
-	                System.out.println("세션 검증 실패: " + sessionID);
-	                return false;
-	            }
-	            System.out.println("세션 검증 성공 (email: " + email + ")");
-	        } catch (Exception e) {
-	            writer.write("FAIL\n");
-	            writer.flush();
-	            System.err.println("세션 검증 중 오류: " + e.getMessage());
-	            return false;
-	        }
-	    }
-		
-	    
-	    // 성공 시
-		String username = authManager.getUsernameFromToken(clientJwt);
-		writer.write("OK\n");
-		writer.flush();
-		System.out.println("로그인(JWT 인증) 성공: " + username);
-		return true;
-		
 	}
-	
+
+
 	/**
 	 * 2. 클라이언트로부터 스트리밍 설정값을 받아 세션 시작
 	 * @return 세션 시작 성공 시 true, 실패 시 false
 	 */
 	private boolean setupAndStartStreamingSession(BufferedReader reader) throws IOException {
-		String configData = reader.readLine();
-		if (configData == null) return false;
-
-		JSONObject configJson = new JSONObject(configData);
-		int fps = configJson.getInt("fps");
-		int bitrate = configJson.getInt("bitrate");
-		int width = configJson.getInt("width");
-		int height = configJson.getInt("height");
-		int port = configJson.getInt("port");
 		
-		// 세션 시작
-		this.streamManager = new StreamSessionManager(
-				clientSocket.getInetAddress().getHostAddress(),
-				fps, bitrate, width, height, port
-		);
-		streamManager.startSession();
-		return true;
+		String configData = reader.readLine();
+		if (configData == null) 
+			return false;
+
+		try {
+			JSONObject configJson = new JSONObject(configData);
+			int fps = configJson.getInt("fps");
+			int bitrate = configJson.getInt("bitrate");
+			int width = configJson.getInt("width");
+			int height = configJson.getInt("height");
+			int port = configJson.getInt("port");
+
+			// 세션 시작
+			this.streamManager = new StreamSessionManager(
+					clientSocket.getInetAddress().getHostAddress(),
+					fps, bitrate, width, height, port
+			);
+			streamManager.startSession();
+			return true;
+		} catch (JSONException e) {
+			System.err.println("스트리밍 설정 실패: 클라이언트가 비정상적인 설정 데이터를 전송했습니다. " + e.getMessage());
+			return false;
+		}
 	}
-	
-	
+
+
 	/**
 	 * 3. 원격 입력 처리 쓰레드 시작
 	 */
 	private void startInputReceiver() throws Exception {
 		Encoder activeEncoder = streamManager.getEncoder();
 		InputEventReceiver inputReceiver = new InputEventReceiver(clientSocket, activeEncoder);
-		new Thread(inputReceiver).start();
+		Thread inputThread = new Thread(inputReceiver, "InputReceiver-" + clientSocket.getInetAddress().getHostAddress());
+		inputThread.start();
 	}
-	
-	
+
+
 	/**
 	 * 4. 모든 세션 리소스를 정리 및 소켓 닫기
 	 */
@@ -191,5 +225,5 @@ public class ClientHandler implements Runnable {
 			e.printStackTrace();
 		}
 	}
-	
+
 }
