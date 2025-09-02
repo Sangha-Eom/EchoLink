@@ -10,7 +10,7 @@ import java.util.Map;
 import com.EchoLink.auth_server.service.FirebaseAuthService;
 
 /**
- * 
+ * 데이터베이스(firebase) 로그인 컨트롤러
  */
 @RestController
 @RequestMapping("/api/firebase")
