@@ -10,7 +10,6 @@ import java.util.Date;
 
 public class AuthManager {
 
-    // TODO: 인증 서버의 application.yml에 있는 jwt.secret 값 불러오기
     private final SecretKey secretKey;
     
     public AuthManager(String jwtSecret) {
@@ -35,7 +34,6 @@ public class AuthManager {
             return false;
         }
         try {
-            // Jwts.parser() 대신 Jwts.parser().verifyWith() 사용
             Jws<Claims> claimsJws = Jwts.parser()
                                         .verifyWith(secretKey)
                                         .build()
