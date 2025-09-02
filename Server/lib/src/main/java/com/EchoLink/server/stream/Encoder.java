@@ -35,6 +35,7 @@ public class Encoder implements Runnable {
 	private final int height;								// " (세로)
 	private final int frameRate;							// 프레임
 	private int videoBitrate; 								// 비트레이트(영상 품질)
+	private final int throwVideoFrameQueue_SIZE = 30;		// 오래된 프레임 버리는 기준
 
 	private FFmpegFrameRecorder recorder;	// 영상/오디오 제공자
 	private final ExecutorService executor = Executors.newFixedThreadPool(2); // 영상,음성 처리용 스레드 풀
@@ -186,6 +187,12 @@ public class Encoder implements Runnable {
 	private void processVideoFrames(FFmpegFrameRecorder recorder, Java2DFrameConverter converter) {
 		while (running) {
 			try {
+				// 큐가 너무 많이 쌓일 시,
+				// 지연을 줄이기 위해 가장 오래된 프레임을 버리고 최신 프레임으로 건너뜀.
+				while (videoFrameQueue.size() > throwVideoFrameQueue_SIZE) {
+					videoFrameQueue.take(); 	// 오래된 프레임 버리기
+				}
+				
 				// '상자'를 꺼냄
 				TimestampedFrame<BufferedImage> tsFrame = videoFrameQueue.take();
 				Frame videoFrame = converter.convert(tsFrame.getFrame());
@@ -196,12 +203,15 @@ public class Encoder implements Runnable {
 					recorder.setTimestamp(tsFrame.getTimestamp() / 1000);
 					recorder.record(videoFrame);
 				}
-			} catch (Exception e) {
-				if (running) e.printStackTrace();
+			} 
+			catch (Exception e) {
+				if (running) 
+					e.printStackTrace();
 			}
 		}
 	}
 
+	
 	/**
 	 * 오디오 처리 쓰레드
 	 * @param recorder 
@@ -227,7 +237,7 @@ public class Encoder implements Runnable {
 	/**
 	 * 비트레이트를 동적으로 변경하는 메소드.(스트리밍 중)
 	 * 
-	 * FFmpegFrameRecorder는 스레드에 안전하지 않을 수 있으므로 동기화 처리.
+	 * 클라이언트가 자신의 네트워크 상태를 서버에 알려, 서버가 그에 맞게 비트레이트 조절
 	 * @param bitrate 새로운 비트레이트 값(bps 단위)
 	 */
 	public void setVideoBitrate(int bitrate) {
