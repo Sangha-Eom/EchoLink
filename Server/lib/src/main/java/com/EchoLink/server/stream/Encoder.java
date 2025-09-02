@@ -69,8 +69,13 @@ public class Encoder implements Runnable {
 
 	@Override
 	public void run() {
-		String outputUrl = "udp://" + clientIp + ":" + port + "?pkt_size=1316&fifo_size=1000000";
-		System.out.println("UDP 스트리밍(Encoder) 시작: " + outputUrl);
+		
+		// UDP 포트 방식
+		// String outputUrl = "udp://" + clientIp + ":" + port + "?pkt_size=1316&fifo_size=1000000";
+		
+		// SRT 포트 방식 ("srt://[IP 주소]:[포트]?mode=caller")
+		String outputUrl = "srt://" + clientIp + ":" + port + "?mode=caller";
+		System.out.println("스트리밍(Encoder) 시작: " + outputUrl);
 
 		// FFmpegFrameRecorder 설정
 		// outputUrl에게 데이터 자동 전송
@@ -130,7 +135,8 @@ public class Encoder implements Runnable {
 				/*
 				 * --- 비디오 설정 ---
 				 */
-				recorder.setFormat("flv");			// UDP에는 flv가 안정적
+				// recorder.setFormat("flv");		// UDP에는 flv 컨테이너 포맷 안정적
+				recorder.setFormat("mpegts");		// SRT는 mpegts 컨테이너 포맷 안정적
 				recorder.setVideoCodecName(codec);  // 코덱 이름으로 설정
 				recorder.setFrameRate(frameRate);	// FPS 설정
 				recorder.setVideoBitrate(videoBitrate);	// 비트레이트 설정
@@ -142,7 +148,11 @@ public class Encoder implements Runnable {
 				}
 				recorder.setVideoOption("tune", "zerolatency");
 
+				// SRT 전송 관련 옵션
+                recorder.setOption("flush_packets", "1"); // 패킷을 즉시 전송하여 지연 시간 감소
+                recorder.setOption("latency", "0"); 	// SRT 내부 지연 시간 설정 (0에 가깝게)
 
+				
 				/*
 				 * --- 오디오 설정 ---
 				 */
