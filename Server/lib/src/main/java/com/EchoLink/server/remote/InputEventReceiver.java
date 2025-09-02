@@ -45,7 +45,7 @@ public class InputEventReceiver implements Runnable {
                     JSONObject eventJson = new JSONObject(line);
                     String eventType = eventJson.getString("type");
                     
-                    // TODO: 마우스 휠클릭 구현
+                    // TODO: 마우스 휠 구현
                     switch (eventType) {
                         case "MOUSE_MOVE":
                             handleMouseMove(eventJson);
@@ -61,6 +61,7 @@ public class InputEventReceiver implements Runnable {
                             break;
                         case "CHANGE_BITRATE":
                         	handleBitrateChange(eventJson);
+                        	break;
                         default:
                             System.out.println("알 수 없는 입력 타입: " + eventType);
                             break;
