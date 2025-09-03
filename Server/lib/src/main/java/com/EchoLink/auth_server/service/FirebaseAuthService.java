@@ -18,8 +18,9 @@ public class FirebaseAuthService {
      * @return Firebase Custom Token 문자열
      */
     public String createFirebaseCustomToken(String uid) throws FirebaseAuthException {
-        // 추가적인 클레임(권한 등)이 필요하다면 아래 Map에 추가할 수 있습니다.
+        
         Map<String, Object> additionalClaims = new HashMap<>();
+        // 추가적인 클레임(권한 등)이 필요 시 추가
         // additionalClaims.put("premium", true);
 
         return FirebaseAuth.getInstance().createCustomToken(uid, additionalClaims);
