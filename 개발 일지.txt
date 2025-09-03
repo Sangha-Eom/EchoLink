@@ -69,4 +69,7 @@
 2. 보안 강화: 서버의 Refresh Token 구현
 
 
+다음 단계:
+API 주소 권한 없음 수정: http://localhost:8080/swagger-ui.html
+
 
