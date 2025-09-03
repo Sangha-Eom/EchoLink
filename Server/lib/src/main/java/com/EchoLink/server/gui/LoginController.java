@@ -56,6 +56,9 @@ public class LoginController {
 	private static final List<String> SCOPES = Arrays.asList("email", "profile");
 
     private final String FIREBASE_WEB_API_KEY; 
+    
+    // 어플에서 사용할 고정 포트 번호
+    private static final int LOCAL_REDIRECT_PORT = 57323;
 	
     /**
      * 생성자
@@ -96,8 +99,8 @@ public class LoginController {
 					new InputStreamReader(LoginController.class.getResourceAsStream(CREDENTIALS_FILE_PATH)));
 
 			// 로컬 콜백을 받을 포트 자동 할당
-			int localPort = findFreePort();
-			String redirectUri = "http://localhost:" + localPort;
+            int localPort = findFreePort();
+            String redirectUri = "http://127.0.0.1:" + localPort;
 
 			// Google 인증 흐름(Flow) 설정
 			GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
@@ -110,7 +113,7 @@ public class LoginController {
 			showStatus("브라우저에서 Google 로그인을 완료해주세요...");
 
 			// 로컬 서버로 리디렉션(콜백) 대기
-			// 이 부분은 실제 프로덕션에서는 더 정교한 로컬 서버 구현이 필요합니다.
+			// TODO: 이 부분은 실제 프로덕션에서는 더 정교한 로컬 서버 구현이 필요합니다.
 			// 여기서는 간단한 임시 서버 로직을 사용합니다.
 			String authCode = new LocalCallbackServer(localPort).waitForCode();
 
@@ -203,9 +206,15 @@ public class LoginController {
 		Platform.runLater(() -> statusLabel.setText(message));
 	}
 
-	private int findFreePort() throws IOException {
-		try (ServerSocket socket = new ServerSocket(0)) {
-			return socket.getLocalPort();
-		}
-	}
+	/**
+	 * 로컬 호스트 동적 등록
+	 * 
+	 * @return 사용 가능한 포트를 OS에 임시로 할당받고 즉시 닫아서 반환
+	 * @throws IOException
+	 */
+    private int findFreePort() throws IOException {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        }
+    }
 }
