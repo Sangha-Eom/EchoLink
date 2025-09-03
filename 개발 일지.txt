@@ -67,9 +67,10 @@
 25.09.03
 1. 로그인 성공 후의 메인 화면 기능을 구체화
 2. 보안 강화: 서버의 Refresh Token 구현
-
+3. FxApplication.java 역할 분리: GUI와 비즈니스 로직 분리
 
 다음 단계:
-API 주소 권한 없음 수정: http://localhost:8080/swagger-ui.html
-
+1. API 주소 권한 없음 수정: http://localhost:8080/swagger-ui.html
+2. 로그인 완료 시 폰트 깨짐 현상 해결
+3. oauth2의 client id와 secret 변경
 
