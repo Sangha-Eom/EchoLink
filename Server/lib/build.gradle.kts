@@ -76,6 +76,10 @@ dependencies {
     // Google OAuth2 클라이언트 및 Firebase와의 연동
 	implementation("com.google.auth:google-auth-library-oauth2-http:1.23.0")
 	implementation("com.google.api-client:google-api-client:2.5.0")
+	
+	// API 문서화 Swagger UI (OpenAPI 3.0)
+	// http://localhost:8080/swagger-ui.html
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
