@@ -57,9 +57,6 @@ public class LoginController {
 
     private final String FIREBASE_WEB_API_KEY; 
     
-    // 어플에서 사용할 고정 포트 번호
-    private static final int LOCAL_REDIRECT_PORT = 57323;
-	
     /**
      * 생성자
      * @param firebaseApiKey
