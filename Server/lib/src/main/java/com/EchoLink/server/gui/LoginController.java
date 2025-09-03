@@ -15,7 +15,6 @@ import javafx.scene.control.Label;
 import org.json.JSONObject;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import java.awt.Desktop;
 import java.io.InputStreamReader;
@@ -32,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.io.IOException;
 
 import com.EchoLink.auth_server.FxApplication;
+import com.EchoLink.server.gui.GuiService;
 
 /**
  * 구글 로그인 창 컨트롤러
@@ -45,8 +45,8 @@ public class LoginController {
 
 	@FXML private Button loginButton;
 	@FXML private Label statusLabel;
-
-	private FxApplication fxApplication;
+	
+	private GuiService guiService; // GuiService 멤버 변수
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private final HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -66,9 +66,9 @@ public class LoginController {
     }
     
     
-	public void setFxApplication(FxApplication fxApplication) {
-		this.fxApplication = fxApplication;
-	}
+    public void setGuiService(GuiService guiService) {
+        this.guiService = guiService;
+    }
 
 	@FXML
 	private void handleGoogleLogin() {
@@ -143,8 +143,13 @@ public class LoginController {
 		}
 	}
 	
-	// Custom Token으로 Firebase에 로그인하고 최종 ID 토큰을 얻는 메소드
+	/**
+	 *  Custom Token으로 Firebase에 로그인하고 최종 ID 토큰을 얻는 메소드
+	 * @param customToken
+	 * @throws Exception
+	 */
     private void signInWithFirebaseRest(String customToken) throws Exception {
+    	
         showStatus("Firebase에 최종 로그인합니다...");
         String requestBody = new JSONObject(Map.of("token", customToken, "returnSecureToken", true)).toString();
 
@@ -161,13 +166,19 @@ public class LoginController {
         if (response.statusCode() == 200) {
             String finalFirebaseIdToken = new JSONObject(response.body()).getString("idToken");
             showStatus("로그인 성공!");
-            Platform.runLater(() -> fxApplication.onLoginSuccess(finalFirebaseIdToken));
+            Platform.runLater(() -> guiService.handleLoginSuccess(finalFirebaseIdToken));
         } else {
             throw new IOException("Firebase REST API sign-in failed: " + response.body());
         }
+        
     }
 	
-    // 서버 API를 호출하여 Firebase Custom Token을 받아오는 메소드
+    /**
+     * 서버 API를 호출하여 Firebase Custom Token을 받아오는 메소드
+     * @param googleIdToken
+     * @return
+     * @throws Exception
+     */
     private String getFirebaseCustomToken(String googleIdToken) throws Exception {
         showStatus("서버에 Firebase 토큰을 요청합니다...");
         String requestBody = new JSONObject(Map.of("idToken", googleIdToken)).toString();
