@@ -1,6 +1,5 @@
 package com.EchoLink.auth_server.service;
 
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,6 +8,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.time.Instant;
 
 /**
  * JWT 생성, 검증, 정보 추출 전담 서비스 클래스
@@ -30,45 +30,51 @@ public class JwtTokenProvider {
 
     // Access Token 생성
     public String createAccessToken(String subject) {
-        Date now = new Date();
-        Date validity = new Date(now.getTime() + accessTokenValidityInMilliseconds);
+        Instant now = Instant.now();
+        Instant validity = now.plusMillis(accessTokenValidityInMilliseconds);
+
         return Jwts.builder()
-                .setSubject(subject)
-                .setIssuedAt(now)
-                .setExpiration(validity)
+                .subject(subject)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(validity))
                 .signWith(key)
                 .compact();
     }
 
     // Refresh Token 생성
     public String createRefreshToken(String subject) {
-        Date now = new Date();
-        Date validity = new Date(now.getTime() + refreshTokenValidityInMilliseconds);
+        Instant now = Instant.now();
+        Instant validity = now.plusMillis(refreshTokenValidityInMilliseconds);
+
         return Jwts.builder()
-                .setSubject(subject) // Refresh Token에는 최소한의 정보만 담는 것이 좋습니다.
-                .setIssuedAt(now)
-                .setExpiration(validity)
+                .subject(subject)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(validity))
                 .signWith(key)
                 .compact();
     }
 
     // 토큰에서 Subject(사용자 이메일) 추출
     public String getSubject(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
+        return Jwts.parser()
+                .verifyWith(key)
                 .build()
-                .parseClaimsJws(token)
-                .getBody()
+                .parseSignedClaims(token)
+                .getPayload()
                 .getSubject();
     }
 
     // 토큰 유효성 검증
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token);
             return true;
         } catch (Exception e) {
             // ExpiredJwtException, UnsupportedJwtException, MalformedJwtException, SignatureException, IllegalArgumentException
+            // 토큰이 유효하지 않은 모든 경우를 처리
             return false;
         }
     }
