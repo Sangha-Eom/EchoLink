@@ -30,13 +30,20 @@ public class SecurityConfig {
 		this.firebaseTokenFilter = firebaseTokenFilter;
 	}
 	
+	/**
+	 * 사용자 인증 메소드
+	 * @param http
+	 * @return
+	 * @throws Exception
+	 */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())	// API 서버는 CSRF 보호가 필요 없으므로 비활성화합니다.
+            .csrf(csrf -> csrf.disable())	// API 서버는 CSRF 보호가 필요 없으므로 비활성화.
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // JWT 토큰 기반의 인증을 사용하므로 세션을 STATELESS로 설정합니다.
             .authorizeHttpRequests(auth -> auth 	
-            	.requestMatchers("/api/firebase/signin").permitAll()
+            	.requestMatchers("/api/firebase/signin").permitAll()	// 로그인 허용
+            	.requestMatchers("/api/auth/refresh").permitAll()	// 토큰 재발급 허용
                 .requestMatchers("/api/devices/**").authenticated()	// '/api/devices/**' 경로의 모든 요청은 인증을 요구합니다.
                 .anyRequest().authenticated()	// 그 외 모든 요청도 인증을 요구합니다.
             )
@@ -45,5 +52,6 @@ public class SecurityConfig {
 
         return http.build();
     }
+    
     
 }
