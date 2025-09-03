@@ -2,17 +2,21 @@ package com.EchoLink.auth_server.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.Map;
 
 import com.EchoLink.auth_server.service.DeviceService;
 import com.EchoLink.auth_server.service.JwtTokenProvider;
 
+/**
+ * 토큰 재발급 컨트롤러
+ */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final JwtTokenProvider jwtTokenProvider;
-    private final DeviceService deviceService;
+    private final JwtTokenProvider jwtTokenProvider;	// 토큰 제공자
+    private final DeviceService deviceService;			// 기기 관리자
 
     public AuthController(JwtTokenProvider jwtTokenProvider, DeviceService deviceService) {
         this.jwtTokenProvider = jwtTokenProvider;
