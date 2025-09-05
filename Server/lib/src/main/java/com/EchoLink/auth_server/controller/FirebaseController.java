@@ -47,7 +47,8 @@ public class FirebaseController {
 
         try {
             // 1. 수신된 Google ID 토큰 검증
-            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+            // .verifyIdToken(idToken); 호환 안되어 true로 인증 건너뜀
+            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken, true);
             String uid = decodedToken.getUid();
             String email = decodedToken.getEmail();
 
