@@ -1,6 +1,7 @@
 package com.EchoLink.auth_server.controller;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -65,8 +66,11 @@ public class FirebaseController {
                     "accessToken", accessToken,
                     "refreshToken", refreshToken
                 ));
-
-        } catch (Exception e) {
+        } 
+        catch (FirebaseAuthException e) {
+        	return ResponseEntity.status(401).body("Token verification failed: " + e.getMessage());
+        } 
+        catch (Exception e) {
             return ResponseEntity.status(401).body("Token verification failed: " + e.getMessage());
         }
     }
