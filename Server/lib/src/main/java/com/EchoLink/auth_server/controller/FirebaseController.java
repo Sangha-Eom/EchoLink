@@ -1,12 +1,9 @@
 package com.EchoLink.auth_server.controller;
 
-
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseToken;
 import com.google.firebase.auth.UserRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -62,6 +59,7 @@ public class FirebaseController {
 	 */
 	@PostMapping("/signin")
 	public ResponseEntity<?> createCustomToken(@RequestBody Map<String, String> payload) {
+		
 		String idTokenString = payload.get("idToken");
 		String deviceName = payload.get("deviceName");	// 클라이언트로부터 기기 이름 수신
 
@@ -73,21 +71,17 @@ public class FirebaseController {
 
 		try {
 			// 1. 수신된 Google ID 토큰 검증
-			GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
-					.setAudience(Collections.singletonList(googleClientId))
-					.build();
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
 
-			GoogleIdToken idToken = verifier.verify(idTokenString);
+            GoogleIdToken idToken = verifier.verify(idTokenString);
 			if (idToken == null) {
 				return ResponseEntity.status(401).body("Invalid ID token.");
 			}
 
-			// Firebase Token 객체 변환 (UserService -> FirebaseToken)
-			// audience 검증은 건너뜀(GoogleIdTokenVerifier가 수행)
-			FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idTokenString, true); 
-			
 			// 2. 검증된 사용자 UID로 Firebase Custom Token 생성
-            UserRecord userRecord = userService.processUserLogin(decodedToken);
+            UserRecord userRecord = userService.processUserLogin(idToken);
             String uid = userRecord.getUid();
             String email = userRecord.getEmail();
 
