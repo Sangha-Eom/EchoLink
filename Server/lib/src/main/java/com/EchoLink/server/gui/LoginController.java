@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.awt.Desktop;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -110,8 +111,8 @@ public class LoginController {
 			showStatus("브라우저에서 Google 로그인을 완료해주세요...");
 
 			// 로컬 서버로 리디렉션(콜백) 대기
-			// TODO: 이 부분은 실제 프로덕션에서는 더 정교한 로컬 서버 구현이 필요합니다.
-			// 여기서는 간단한 임시 서버 로직을 사용합니다.
+			// TODO: 이 부분은 실제 프로덕션에서는 더 정교한 로컬 서버 구현이 필요.
+			// 인시로 간단한 임시 서버 로직을 사용.
 			String authCode = new LocalCallbackServer(localPort).waitForCode();
 
 			if (authCode != null) {
@@ -180,8 +181,18 @@ public class LoginController {
      * @throws Exception
      */
     private String getFirebaseCustomToken(String googleIdToken) throws Exception {
+    	
         showStatus("서버에 Firebase 토큰을 요청합니다...");
-        String requestBody = new JSONObject(Map.of("idToken", googleIdToken)).toString();
+        
+        // 현재 PC의 이름을 기기 이름(deviceName)으로 사용
+        String deviceName = InetAddress.getLocalHost().getHostName();
+
+        // JSON 본문에 idToken과 deviceName을 모두 포함
+        String requestBody = new JSONObject(Map.of(
+                "idToken", googleIdToken,
+                "deviceName", deviceName
+        )).toString();
+        
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:8080/api/firebase/signin"))
