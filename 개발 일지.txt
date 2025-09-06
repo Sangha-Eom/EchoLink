@@ -84,10 +84,11 @@
 
 ~~
 25.09.06
-로그인 인증 토큰 오류 (해결 중)
+로그인 인증 토큰 오류 (해결 완료)
 ㄴFirebase, Google Console 해결 완료
-
-
+ㄴFirebase 새로운 사용자 로직 구현 및 추가 완료
+ㄴ폰트 깨짐 현상 해결
+=> 로그인 구현 완료
 
 다음 단계:
 1. API 주소 권한 없음 수정: http://localhost:8080/swagger-ui.html
