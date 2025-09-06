@@ -2,10 +2,11 @@ package com.EchoLink.auth_server.service;
 
 import com.google.cloud.firestore.Firestore;
 import com.google.firebase.auth.FirebaseToken;
-import com.google.firebase.cloud.FirestoreClient;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.UserRecord;
 import org.springframework.stereotype.Service;
-import com.google.cloud.firestore.Firestore;
-import com.google.firebase.auth.FirebaseToken;
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,13 +30,34 @@ public class UserService {
 	/**
 	 * FirebaseToken을 기반으로 Firestore에 사용자 정보를 저장하거나 업데이트 함.
 	 * @param decodedToken Firebase Admin SDK로 검증된 사용자 토큰
+	 * @throws FirebaseAuthException 
 	 */
-	public void processUserLogin(FirebaseToken decodedToken) throws ExecutionException, InterruptedException {
+	public void processUserLogin(FirebaseToken decodedToken) throws ExecutionException, InterruptedException, FirebaseAuthException {
 		
 		String uid = decodedToken.getUid();
 		String email = decodedToken.getEmail();
 		String name = decodedToken.getName();
-
+		
+        // Firebase Authentication에 사용자가 존재하는지 확인
+        try {
+        	// 사용자가 존재 O
+            FirebaseAuth.getInstance().getUser(uid);
+        } catch (FirebaseAuthException e) {
+            // 사용자가 존재 X
+            if (e.getAuthErrorCode().toString().equals("USER_NOT_FOUND")) {
+                UserRecord.CreateRequest request = new UserRecord.CreateRequest()
+                        .setUid(uid)
+                        .setEmail(email)
+                        .setDisplayName(name)
+                        .setEmailVerified(true); // Google 로그인이므로 이메일은 검증된 것으로 간주
+                FirebaseAuth.getInstance().createUser(request);
+                System.out.println("새로운 사용자를 Firebase Authentication에 생성했습니다: " + email);
+            } else {
+                // 그 외 다른 Firebase 인증 오류는 다시 던짐
+                throw e;
+            }
+        }
+		
 		// Firestore의 'users' 컬렉션에서 해당 UID의 문서가 있는지 확인
 		var userDocRef = db.collection("users").document(uid);
 
