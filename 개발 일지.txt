@@ -81,3 +81,14 @@
 1. 로그인 인증 토큰 오류 해결 (Google Gemini -> Google Console, Firebase)
 2. API 주소 권한 없음 수정: http://localhost:8080/swagger-ui.html
 3. 로그인 완료 시 폰트 깨짐 현상 해결
+
+~~
+25.09.06
+로그인 인증 토큰 오류 (해결 중)
+ㄴFirebase, Google Console 해결 완료
+
+
+
+다음 단계:
+1. API 주소 권한 없음 수정: http://localhost:8080/swagger-ui.html
+2. 로그인 완료 시 폰트 깨짐 현상 해결
