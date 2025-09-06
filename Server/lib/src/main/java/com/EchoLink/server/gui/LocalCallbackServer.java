@@ -26,16 +26,50 @@ public class LocalCallbackServer {
                 String query = exchange.getRequestURI().getQuery();
                 if (query != null && query.contains("code=")) {
                     authCode = query.substring(query.indexOf("code=") + 5).split("&")[0];
-                    String response = "<h1>인증 성공!</h1><p>앱으로 돌아가세요. 이 창을 닫아도 됩니다.</p>";
+                    
+                    // 로그인 성공 창
+                    String response = """
+                            <!DOCTYPE html>
+                            <html lang="ko">
+                            <head>
+                                <meta charset="UTF-8">
+                                <title>인증 성공</title>
+                            </head>
+                            <body>
+                                <h1>인증 성공!</h1>
+                                <p>앱으로 돌아가세요. 이 창을 닫아도 됩니다.</p>
+                            </body>
+                            </html>
+                        """;
+                    
                     byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);
+                    
+                    exchange.getResponseHeaders().add("Content-Type", "text/html; charset=UTF-8");
                     exchange.sendResponseHeaders(200, responseBytes.length);
+                    
                     try (OutputStream os = exchange.getResponseBody()) {
                         os.write(responseBytes);
                     }
                 } else {
-                    String error = "<h1>인증 실패</h1><p>오류가 발생했습니다. 다시 시도해주세요.</p>";
+                    String error = """
+                            <!DOCTYPE html>
+                            <html lang="ko">
+                            <head>
+                                <meta charset="UTF-8">
+                                <title>인증 실패</title>
+                            </head>
+                            <body>
+                                <h1>인증 실패</h1>
+                                <p>오류가 발생했습니다. 다시 시도해주세요.</p>
+                            </body>
+                            </html>
+                        """;
+                    
                     byte[] errorBytes = error.getBytes(StandardCharsets.UTF_8);
+                    
+                    exchange.getResponseHeaders().add("Content-Type", "text/html; charset=UTF-8");
                     exchange.sendResponseHeaders(400, errorBytes.length);
+                    
                      try (OutputStream os = exchange.getResponseBody()) {
                         os.write(errorBytes);
                     }
