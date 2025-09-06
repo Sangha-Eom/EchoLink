@@ -7,7 +7,6 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.firebase.auth.FirebaseAuth;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -30,9 +29,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.io.IOException;
-
-import com.EchoLink.auth_server.FxApplication;
-import com.EchoLink.server.gui.GuiService;
 
 /**
  * 구글 로그인 창 컨트롤러
