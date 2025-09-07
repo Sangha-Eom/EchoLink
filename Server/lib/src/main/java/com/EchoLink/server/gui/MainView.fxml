@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.text.Text?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
 
-<VBox alignment="CENTER" spacing="20.0" prefWidth="400.0" xmlns="http://javafx.com/javafx/21"
+<VBox alignment="CENTER" spacing="15.0" prefWidth="500.0" xmlns="http://javafx.com/javafx/21"
       xmlns:fx="http://www.w3.org/2001/fxml-1" fx:controller="com.EchoLink.server.gui.MainController">
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
@@ -13,6 +20,35 @@
 
     <Text text="EchoLink Server" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
 
-    <Label fx:id="statusLabel" text="서버가 실행 중입니다. 클라이언트의 연결을 기다립니다."/>
-
+    <VBox spacing="5">
+        <Label text="온라인 기기 목록:" style="-fx-font-weight: bold;"/>
+        <ListView fx:id="deviceListView" prefHeight="150.0"/>
+        
     </VBox>
+
+    <GridPane hgap="10" vgap="10" alignment="CENTER">
+        <columnConstraints>
+            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="250.0"/>
+        </columnConstraints>
+
+        <Label text="해상도:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="resolutionComboBox" prefWidth="250.0" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+        <Label text="비트레이트 (Mbps):" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+        <Slider fx:id="bitrateSlider" min="1" max="50" value="10" blockIncrement="1" showTickLabels="true" showTickMarks="true" majorTickUnit="10" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+        
+        <Label text="FPS:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="fpsComboBox" prefWidth="250.0" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+    </GridPane>
+
+    <HBox spacing="10" alignment="CENTER">
+        <Button fx:id="startButton" text="스트리밍 시작" onAction="#handleStartStreaming" prefHeight="40.0" style="-fx-font-size: 14px;"/>
+        <Button fx:id="stopButton" text="스트리밍 중지" onAction="#handleStopStreaming" prefHeight="40.0" style="-fx-font-size: 14px;" disable="true"/>
+    
+    	<Button fx:id="logoutButton" text="로그아웃" onAction="#handleLogout" prefHeight="40.0" style="-fx-font-size: 14px; -fx-base: #f08080;"/>
+    </HBox>
+
+    <Label fx:id="statusLabel" text="클라이언트 연결 대기 중..."/>
+
+</VBox>
