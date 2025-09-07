@@ -46,6 +46,37 @@ public class GuiService {
         }
     }
 
+    // 로그아웃 처리 메소드
+    public void handleLogout() {
+        // 1. 실행 중인 스트리밍 서버 및 Heartbeat 서비스 중지
+        streamingServerService.stopServer();
+
+        // 2. 저장된 세션 토큰 파일 삭제
+        deleteToken();
+
+        // 3. UI를 로그인 화면으로 전환
+        Platform.runLater(() -> {
+            try {
+                showLoginScene();
+            } catch (IOException e) {
+                System.err.println("로그인 화면으로 돌아가는 중 오류 발생");
+                e.printStackTrace();
+            }
+        });
+    }
+    
+    // 토큰 파일을 삭제하는 private 메소드
+    private void deleteToken() {
+        try {
+            if (Files.exists(TOKEN_PATH)) {
+                Files.delete(TOKEN_PATH);
+                System.out.println("세션 토큰이 삭제되었습니다.");
+            }
+        } catch (IOException e) {
+            System.err.println("토큰 삭제에 실패했습니다: " + e.getMessage());
+        }
+    }
+    
     public void handleLoginSuccess(String idToken) {
         saveToken(idToken);
         streamingServerService.startServer(idToken); // 스트리밍 서비스 시작
@@ -78,9 +109,10 @@ public class GuiService {
         fxmlLoader.setControllerFactory(springContext::getBean);
         Parent root = fxmlLoader.load();
 
-        // MainController 설정 (필요 시)
-        // MainController mainController = fxmlLoader.getController();
-        // mainController.setGuiService(this);
+        // MainController를 가져와 GuiService 참조 설정
+        MainController mainController = fxmlLoader.getController();
+        mainController.setGuiService(this); 	// GuiService 참조 전달
+        mainController.setJwtToken(loadToken()); // JWT 토큰 전달
 
         stage.setTitle("EchoLink Server - 연결 대기 중");
         stage.setScene(new Scene(root));
