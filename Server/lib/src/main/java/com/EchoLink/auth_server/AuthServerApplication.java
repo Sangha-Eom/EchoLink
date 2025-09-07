@@ -2,16 +2,14 @@ package com.EchoLink.auth_server;
 
 import javafx.application.Application;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 
 /**
- * test용
- * http://localhost:8080
- * 
  * Spring Boot의 설정 파일 역할
  * 실행은 FxApplication 클래스로 이양
  */
-@SpringBootApplication
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
 @ComponentScan(basePackages = {"com.EchoLink.auth_server", "com.EchoLink.server"})
 public class AuthServerApplication {
 
