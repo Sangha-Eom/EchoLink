@@ -17,8 +17,7 @@
 ㄴ MainActivity.java를 토대로 시작
 
 ~~~~
-5. 보안 및 편의 기능 강화 ( 진행 중 )
-1) Refresh Token 도입: 현재 Access Token(JWT)은 유효 기간이 짧아 만료 시 다시 로그인해야 합니다. Refresh Token을 함께 발급하여 Access Token이 만료되었을 때 클라이언트가 자동으로 새로운 토큰을 재발급받도록 하면 사용자 경험이 크게 향상됩니다.
+5. 보안 및 편의 기능 강화.
 
 2) 보안 강화:
   application.yml과 serviceAccountKey.json 같은 민감한 설정 파일이 절대로 공개 저장소에 올라가지 않도록 각별히 주의해야 합니다.
@@ -26,8 +25,24 @@
 
 3) 로컬 호스팅 코드 보완
 
+~~~~
+6. 스트리밍 설정 UI 구현
+해상도, 비트레이트, FPS 등의 설정을 위한 ComboBox, Slider, TextField를 MainView.fxml에 추가합니다.
+MainController.java에서 각 UI 컨트롤의 값을 읽어 StreamingServerService로 전달하는 로직을 구현합니다.
+사용자가 설정을 변경하면 Encoder.java의 setVideoBitrate와 같은 메소드를 호출하여 실시간으로 스트리밍 품질을 조절할 수 있도록 합니다.
 
+~~~~
+7. 민감한 설정 파일 관리
 
+1) 환경 변수 사용:
+ServerConfig.java에서 이미 시스템 속성과 환경 변수를 우선적으로 읽도록 구현되어 있습니다.
+실행 환경에서 ECHOLINK_JWT_SECRET, SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID 와 같은 환경 변수를 설정하여 민감한 정보를 주입합니다.
+
+2) 외부 설정 파일:
+--spring.config.location 옵션을 사용하여 외부 경로에 있는 application.yml 파일을 로드하도록 설정할 수 있습니다.
+serviceAccountKey.json 파일은 애플리케이션 실행 파일과 별도의 안전한 경로에 두고, FirebaseConfig.java에서 해당 파일의 경로를 읽어오도록 수정합니다.
+
+~~~~
 
 
 
