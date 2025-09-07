@@ -26,6 +26,7 @@ public class FxApplication extends Application {
 	public void init() {
 		// Spring Boot 어플 초기화
 		springContext = new SpringApplicationBuilder(AuthServerApplication.class)
+				.properties("spring.config.location=file:secret/application.yml")
 				.headless(false)
 				.run();
 	}
