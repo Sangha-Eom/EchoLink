@@ -5,8 +5,8 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -33,7 +33,7 @@ public class FirebaseConfig {
         }
 
         // 비공개 키 파일 로드
-        InputStream serviceAccount = new ClassPathResource("serviceAccountKey.json").getInputStream();
+        InputStream serviceAccount = new FileInputStream("secret/serviceAccountKey.json");
 
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))
