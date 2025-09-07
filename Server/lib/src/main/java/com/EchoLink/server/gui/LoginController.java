@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.awt.Desktop;
 import java.io.InputStreamReader;
+import java.io.FileInputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -48,7 +49,7 @@ public class LoginController {
 	private final HttpClient httpClient = HttpClient.newHttpClient();
 
 	// Firebase 콘솔에서 발급받은 웹 클라이언트의 JSON 파일을 사용(client_secret.json)
-	private static final String CREDENTIALS_FILE_PATH = "/client_secret.json";
+	private static final String CREDENTIALS_FILE_PATH = "secret/client_secret.json";
 	private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 	private static final List<String> SCOPES = Arrays.asList("email", "profile");
 
@@ -88,9 +89,9 @@ public class LoginController {
 		try {
 			final NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
 
-			// client_secret.json 파일 로드
+			// client_secret.json 외부 파일 로드
 			GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY,
-					new InputStreamReader(LoginController.class.getResourceAsStream(CREDENTIALS_FILE_PATH)));
+                    new InputStreamReader(new FileInputStream("secret/client_secret.json")));
 
 			// 로컬 콜백을 받을 포트 자동 할당
             int localPort = findFreePort();
