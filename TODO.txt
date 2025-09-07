@@ -30,7 +30,7 @@ MainController.java에서 각 UI 컨트롤의 값을 읽어 StreamingServerServi
 
 ~~~~
 7. 민감한 설정 파일 관리
-환경 변수 사용: (추후로 이동)
+환경 변수 사용: (Server 마무리 작업 때 구현: 사지방 제한)
 ServerConfig.java에서 이미 시스템 속성과 환경 변수를 우선적으로 읽도록 구현되어 있습니다.
 실행 환경에서 ECHOLINK_JWT_SECRET, SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID 와 같은 환경 변수를 설정하여 민감한 정보를 주입합니다.
 ~~~~
