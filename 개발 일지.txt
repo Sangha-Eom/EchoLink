@@ -97,3 +97,9 @@
   2.1 보안 파일(applicaton.yml 외 2개) 외부 파일 설정(--spring.config.location)
   2.2 환경 변수 사용(ServerConfig.java)
 
+~~
+25.09.07
+데스크톱 GUI 메인 화면 기능 구체화 완료(로그아웃, 기기 목록 등) (MainView.fxml)
+API 문서화 확인 중
+
+
