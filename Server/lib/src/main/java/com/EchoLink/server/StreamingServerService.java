@@ -1,8 +1,5 @@
 package com.EchoLink.server;
 
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.ApplicationListener;
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +20,7 @@ import org.json.JSONObject;
 
 import com.EchoLink.server.config.ServerConfig;
 import com.EchoLink.server.handler.ClientHandler;
+import com.EchoLink.server.handler.StreamSessionManager;
 
 /**
  * 스트리밍 서버 시작(main) 클래스
@@ -44,6 +42,8 @@ public class StreamingServerService {
     private ScheduledExecutorService heartbeatScheduler;	// 상태 확인 객체
     private volatile boolean running = true;				// 어플 실행 상태
 
+    private StreamSessionManager streamSessionManager; // 현재 활성화된 스트리밍 세션을 관리
+    
     /**
      * 생성자
      * 서버 기본 설정 로드
@@ -102,7 +102,51 @@ public class StreamingServerService {
         }
         System.out.println("[EchoLink] 모든 서비스가 종료되었습니다.");
     }
+    
+    /**
+     * GUI에서 사용자가 선택한 설정으로 스트리밍 세션을 시작합니다.
+     * @param clientIp 연결할 클라이언트 IP
+     * @param resolution "가로x세로" 형태의 해상도 문자열
+     * @param bitrate bps 단위의 비트레이트
+     * @param fps 초당 프레임 수
+     */
+    public void startStreamingSession(String clientIp, String resolution, int bitrate, int fps) {
+        if (streamSessionManager != null) {
+            System.err.println("이미 스트리밍 세션이 진행 중입니다.");
+            return;
+        }
 
+        try {
+            String[] dimensions = resolution.split("x");
+            int width = Integer.parseInt(dimensions[0]);
+            int height = Integer.parseInt(dimensions[1]);
+            
+            // TODO: 실제 클라이언트의 UDP 포트를 받아와야 함. 
+            // 우선 임의의 포트(예: 9999) 사용
+            int clientUdpPort = 9999; 
+
+            // StreamSessionManager를 생성하고 세션을 시작.
+            streamSessionManager = new StreamSessionManager(clientIp, fps, bitrate * 1_000_000, width, height, clientUdpPort); // bps 단위로 변환
+            streamSessionManager.startSession();
+            
+            System.out.println("GUI에 의해 스트리밍 세션이 시작되었습니다: " + clientIp);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            // TODO: GUI에 오류 메시지를 표시하는 로직 추가 필요
+        }
+    }
+
+    /**
+     * 현재 진행 중인 스트리밍 세션을 중지합니다.
+     */
+    public void stopStreamingSession() {
+        if (streamSessionManager != null) {
+            streamSessionManager.stopSession();
+            streamSessionManager = null; // 세션 정리
+            System.out.println("GUI에 의해 스트리밍 세션이 중지되었습니다.");
+        }
+    }
     
     /**
      * 스트리밍 서버 소켓 열고 클라이언트 연결 대기
