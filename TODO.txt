@@ -17,11 +17,8 @@
 ㄴ MainActivity.java를 토대로 시작
 
 ~~~~
-5. 보안 및 편의 기능 강화.
-
-2) 보안 강화:
-  application.yml과 serviceAccountKey.json 같은 민감한 설정 파일이 절대로 공개 저장소에 올라가지 않도록 각별히 주의해야 합니다.
-  API 문서화: Swagger(OpenAPI) 같은 도구를 이용해 인증 서버의 API를 문서화해두면, 향후 클라이언트 확장이나 협업 시 큰 도움이 됩니다.
+5. API 문서화
+Swagger(OpenAPI) 같은 도구를 이용해 인증 서버의 API를 문서화해두면, 향후 클라이언트 확장이나 협업 시 큰 도움이 됩니다.
 
 3) 로컬 호스팅 코드 보완
 
@@ -33,15 +30,9 @@ MainController.java에서 각 UI 컨트롤의 값을 읽어 StreamingServerServi
 
 ~~~~
 7. 민감한 설정 파일 관리
-
-1) 환경 변수 사용:
+환경 변수 사용: (추후로 이동)
 ServerConfig.java에서 이미 시스템 속성과 환경 변수를 우선적으로 읽도록 구현되어 있습니다.
 실행 환경에서 ECHOLINK_JWT_SECRET, SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID 와 같은 환경 변수를 설정하여 민감한 정보를 주입합니다.
-
-2) 외부 설정 파일:
---spring.config.location 옵션을 사용하여 외부 경로에 있는 application.yml 파일을 로드하도록 설정할 수 있습니다.
-serviceAccountKey.json 파일은 애플리케이션 실행 파일과 별도의 안전한 경로에 두고, FirebaseConfig.java에서 해당 파일의 경로를 읽어오도록 수정합니다.
-
 ~~~~
 
 
