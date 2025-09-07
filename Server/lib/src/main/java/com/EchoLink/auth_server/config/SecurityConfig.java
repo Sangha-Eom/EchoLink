@@ -42,12 +42,13 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())	// API 서버는 CSRF 보호가 필요 없으므로 비활성화.
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // JWT 토큰 기반의 인증을 사용하므로 세션을 STATELESS로 설정합니다.
             .authorizeHttpRequests(auth -> auth 	
-            	.requestMatchers("/api/firebase/signin").permitAll()	// 로그인 허용
-            	.requestMatchers("/api/auth/refresh").permitAll()	// 토큰 재발급 허용
-                .requestMatchers("/api/devices/**").authenticated()	// '/api/devices/**' 경로의 모든 요청은 인증을 요구합니다.
-                .anyRequest().authenticated()	// 그 외 모든 요청도 인증을 요구합니다.
+            		 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()	// TODO: Swagger UI 접근 허용 -> exe 파일 만들 시 제거
+            		 .requestMatchers("/api/firebase/signin").permitAll()	// 로그인 허용
+            		 .requestMatchers("/api/auth/refresh").permitAll()	// 토큰 재발급 허용
+            		 .requestMatchers("/api/devices/**").authenticated()	// '/api/devices/**' 경로의 모든 요청은 인증을 요구합니다.
+            		 .anyRequest().authenticated()	// 그 외 모든 요청도 인증을 요구합니다.
             )
-            // 우리가 직접 만든 FirebaseTokenFilter를 Spring Security의 필터 체인에 추가합니다.
+            // FirebaseTokenFilter를 Spring Security의 필터 체인에 추가.
             .addFilterBefore(firebaseTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
