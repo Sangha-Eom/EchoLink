@@ -1,6 +1,8 @@
 package com.EchoLink.server;
 
 import jakarta.annotation.PreDestroy;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -16,7 +18,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.json.JSONObject;
 
 import com.EchoLink.server.config.ServerConfig;
 import com.EchoLink.server.handler.ClientHandler;
@@ -47,9 +48,11 @@ public class StreamingServerService {
     /**
      * 생성자
      * 서버 기본 설정 로드
+     * @param config Spring이 자동으로 ServerConfig Bean을 주입합니다.
      */
-    public StreamingServerService() {
-        this.config = ServerConfig.load();
+    @Autowired
+    public StreamingServerService(ServerConfig config) {
+        this.config = config;
     }
     
     
