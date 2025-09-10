@@ -59,6 +59,9 @@ public class InputEventReceiver implements Runnable {
                         case "KEY_RELEASE":
                             handleKeyRelease(eventJson);
                             break;
+                        case "CHANGE_RESOLUTION":
+                            handleResolutionChange(eventJson);
+                            break;
                         case "CHANGE_BITRATE":
                         	handleBitrateChange(eventJson);
                         	break;
@@ -120,6 +123,18 @@ public class InputEventReceiver implements Runnable {
     private void handleKeyRelease(JSONObject eventJson) {
         int keyCode = eventJson.getInt("keyCode");
         robot.keyRelease(keyCode);
+    }
+    
+    /**
+     * 해상도 변경 요청 처리
+     * @param eventJson
+     */
+    private void handleResolutionChange(JSONObject eventJson) {
+        int newWidth = eventJson.getInt("width");
+        int newHeight = eventJson.getInt("height");
+        if (encoder != null) {
+            encoder.changeResolution(newWidth, newHeight);
+        }
     }
     
     /**
