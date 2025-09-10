@@ -112,4 +112,4 @@ SpringBoot 로그인 기능 오류 해결(외부 파일 경로 오류, Bean의 �
 synchronize -> lock 변경(Encoder.java)
 
 다음 단계:
-
+서버 안정 로직 구현(SpringBoot Logger)
