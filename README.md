@@ -1,6 +1,7 @@
-# EchoLink(Remote-Project)
+# EchoLink
 Remote Desktop to Android for playing game
 
-[Android 앱 클라이언트]
-↕ 통신
-[Java 데스크톱 서버]
+[앱 클라이언트(Android)] <-> [데스크톱 서버(Windows)]
+
+Android : 
+Windows : 
