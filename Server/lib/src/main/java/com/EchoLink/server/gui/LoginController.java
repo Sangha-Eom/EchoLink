@@ -91,7 +91,7 @@ public class LoginController {
 
 			// client_secret.json 외부 파일 로드
 			GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY,
-                    new InputStreamReader(new FileInputStream("secret/client_secret.json")));
+                    new InputStreamReader(new FileInputStream(CREDENTIALS_FILE_PATH)));
 
 			// 로컬 콜백을 받을 포트 자동 할당
             int localPort = findFreePort();
@@ -103,7 +103,10 @@ public class LoginController {
 					.build();
 
 			// 인증 URL 생성 및 브라우저 열기
-			String authorizationUrl = flow.newAuthorizationUrl().setRedirectUri(redirectUri).build();
+			String authorizationUrl = flow.newAuthorizationUrl()
+					.setRedirectUri(redirectUri)
+					.set("prompt", "select_account")
+					.build();
 			Desktop.getDesktop().browse(new URI(authorizationUrl));
 			showStatus("브라우저에서 Google 로그인을 완료해주세요...");
 
