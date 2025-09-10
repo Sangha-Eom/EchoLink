@@ -3,11 +3,9 @@ package com.EchoLink.server.remote;
 import java.awt.AWTException;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
-import java.awt.event.KeyEvent;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.DataInputStream;
+import java.io.InputStream;
 import java.net.Socket;
-import org.json.JSONObject;
 
 import com.EchoLink.server.stream.Encoder;
 
@@ -15,8 +13,8 @@ import com.EchoLink.server.stream.Encoder;
 /**
  * 클라이언트로부터 여러 이벤트를 받아 처리하는 클래스
  * 
- * 마우스/키보드 입력
- * 비트레이트 조절(제어)
+ * 클라이언트: binary 값 수신
+ * 서버: binary 값에 맞는 이벤트 처리
  * @author ESH
  */
 public class InputEventReceiver implements Runnable {
@@ -38,72 +36,63 @@ public class InputEventReceiver implements Runnable {
 
     @Override
     public void run() {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-            String line;
-            while (running && (line = reader.readLine()) != null) {
-                try {
-                    JSONObject eventJson = new JSONObject(line);
-                    String eventType = eventJson.getString("type");
-                    
-                    // TODO: 마우스 휠 구현
-                    switch (eventType) {
-                        case "MOUSE_MOVE":
-                            handleMouseMove(eventJson);
-                            break;
-                        case "MOUSE_CLICK":
-                            handleMouseClick(eventJson);
-                            break;
-                        case "KEY_PRESS":
-                            handleKeyPress(eventJson);
-                            break;
-                        case "KEY_RELEASE":
-                            handleKeyRelease(eventJson);
-                            break;
-                        case "CHANGE_RESOLUTION":
-                            handleResolutionChange(eventJson);
-                            break;
-                        case "CHANGE_BITRATE":
-                        	handleBitrateChange(eventJson);
-                        	break;
-                        default:
-                            System.out.println("알 수 없는 입력 타입: " + eventType);
-                            break;
-                    }
-                } catch (Exception e) {
-                    System.err.println("입력 이벤트 처리 중 오류 발생: " + e.getMessage());
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            stop();
-        }
+        try (InputStream is = clientSocket.getInputStream();
+                DataInputStream dis = new DataInputStream(is)) {
+               
+               while (running) {
+                   // 1. 이벤트 타입을 1바이트 읽는다.
+                   byte eventType = dis.readByte();
+                   
+                   // 2. 타입에 따라 정해진 데이터를 읽어 처리한다.
+                   switch (eventType) {
+                       case 1: // MOUSE_MOVE
+                           handleMouseMove(dis.readInt(), dis.readInt());
+                           break;
+                       case 2: // MOUSE_CLICK
+                           handleMouseClick(dis.readInt());
+                           break;
+                       case 3: // KEY_PRESS
+                           handleKeyPress(dis.readInt());
+                           break;
+                       case 4: // KEY_RELEASE
+                           handleKeyRelease(dis.readInt());
+                           break;
+                       case 5: // CHANGE_BITRATE
+                           handleBitrateChange(dis.readInt());
+                           break;
+                       case 6: // CHANGE_RESOLUTION
+                           handleResolutionChange(dis.readInt(), dis.readInt());
+                           break;
+                       default:
+                           System.out.println("알 수 없는 입력 타입: " + eventType);
+                           break;
+                   }
+               }
+           } catch (Exception e) {
+               // 클라이언트 연결이 끊어지면 IOException이 발생하며 루프가 정상 종료됩니다.
+               System.out.println("입력 스트림 종료: " + e.getMessage());
+           } finally {
+               stop();
+           }
     }
 
 	/**
 	 * 마우스 이동 처리
 	 * @param eventJson
 	 */
-    private void handleMouseMove(JSONObject eventJson) {
-        int x = eventJson.getInt("x");
-        int y = eventJson.getInt("y");
+    private void handleMouseMove(int x, int y) {
         robot.mouseMove(x, y);
     }
 
     /**
      * 마우스 클릭 처리
+     * TODO:클라이언트: int 값 그대로 송신
      * @param eventJson
      */
-    private void handleMouseClick(JSONObject eventJson) {
-        String button = eventJson.getString("button");
-        int mask = switch (button) {
-            case "LEFT" -> InputEvent.BUTTON1_DOWN_MASK;
-            case "RIGHT" -> InputEvent.BUTTON3_DOWN_MASK;
-            default -> 0;
-        };
-        if (mask != 0) {
-            robot.mousePress(mask);
-            robot.mouseRelease(mask);
+    private void handleMouseClick(int buttonMask) {
+        if (buttonMask != 0) {
+            robot.mousePress(buttonMask);
+            robot.mouseRelease(buttonMask);
         }
     }
 
@@ -111,8 +100,7 @@ public class InputEventReceiver implements Runnable {
      * 키 누름 처리
      * @param eventJson
      */
-    private void handleKeyPress(JSONObject eventJson) {
-        int keyCode = eventJson.getInt("keyCode");
+    private void handleKeyPress(int keyCode) {
         robot.keyPress(keyCode);
     }
 
@@ -120,8 +108,7 @@ public class InputEventReceiver implements Runnable {
      * 키 떼기 처리
      * @param eventJson
      */
-    private void handleKeyRelease(JSONObject eventJson) {
-        int keyCode = eventJson.getInt("keyCode");
+    private void handleKeyRelease(int keyCode) {
         robot.keyRelease(keyCode);
     }
     
@@ -129,11 +116,9 @@ public class InputEventReceiver implements Runnable {
      * 해상도 변경 요청 처리
      * @param eventJson
      */
-    private void handleResolutionChange(JSONObject eventJson) {
-        int newWidth = eventJson.getInt("width");
-        int newHeight = eventJson.getInt("height");
+    private void handleResolutionChange(int width, int height) {
         if (encoder != null) {
-            encoder.changeResolution(newWidth, newHeight);
+            encoder.changeResolution(width, height);
         }
     }
     
@@ -141,8 +126,7 @@ public class InputEventReceiver implements Runnable {
      * 비트레이트 변경
      * @param eventJson
      */
-    private void handleBitrateChange(JSONObject eventJson) {
-		int newBitrate = eventJson.getInt("bitrate");
+    private void handleBitrateChange(int newBitrate) {
 		if (encoder != null) {
 			encoder.setVideoBitrate(newBitrate);
 		}
@@ -154,7 +138,7 @@ public class InputEventReceiver implements Runnable {
     public void stop() {
         running = false;
         try {
-            if (clientSocket != null) {
+            if (clientSocket != null && !clientSocket.isClosed()) {
                 clientSocket.close();
             }
         } catch (Exception e) {
