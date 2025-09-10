@@ -36,17 +36,16 @@ public class ClientHandler implements Runnable {
 	// 연결 타임아웃 상수 (15초)
 	private static final int SOCKET_TIMEOUT_MS = 15000;
 
-	/**
-	 * 생성자
-	 * @param socket 연결
-	 * @param serverJWT 서버로부터 발급받은 원본 JWT
-	 * @param config 서버 설정 객체
-	 */
-	public ClientHandler(Socket socket, String serverJWT, ServerConfig config) {
-		this.clientSocket = socket;
-		this.serverJwt = serverJWT;
-		this.authManager = new AuthManager(config.getJwtSecret());
-	}
+    /**
+     * 생성자
+     * @param config StreamingServerService로부터 주입받은 ServerConfig 객체
+     */
+    public ClientHandler(Socket socket, String serverJWT, ServerConfig config) {
+        this.clientSocket = socket;
+        this.serverJwt = serverJWT;
+        // 주입받은 config 객체로부터 jwtSecret 값을 가져와 AuthManager를 생성합니다.
+        this.authManager = new AuthManager(config.getJwtSecret());
+    }
 
 
 	@Override
