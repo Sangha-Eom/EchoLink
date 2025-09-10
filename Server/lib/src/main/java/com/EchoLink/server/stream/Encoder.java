@@ -11,6 +11,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+
 import org.bytedeco.ffmpeg.global.avutil;
 
 
@@ -31,15 +33,18 @@ public class Encoder implements Runnable {
 	 */
 	private final String clientIp;							// 클라이언트
 	private final int port;									// UDP 포트
-	private final int width;								// 화면 크기(가로)
-	private final int height;								// " (세로)
+	private int width;								// 해상도(가로)
+	private int height;								// 해상도(세로)
 	private final int frameRate;							// 프레임
 	private int videoBitrate; 								// 비트레이트(영상 품질)
-	private final int throwVideoFrameQueue_SIZE = 30;		// 오래된 프레임 버리는 기준
+	private final int throwVideoFrameQueue_SIZE = 30;		// 프레임 큐 임계값
+	private final int throwAudioFrameQueue_SIZE = 150;		// 오디오 큐 임계값
 
 	private FFmpegFrameRecorder recorder;	// 영상/오디오 제공자
 	private final ExecutorService executor = Executors.newFixedThreadPool(2); // 영상,음성 처리용 스레드 풀
-
+	
+	private final ReentrantLock recorderLock = new ReentrantLock();	// 동시성 제어용 Lock
+	
 	private volatile boolean running = true;	// 종료
 
 
@@ -142,6 +147,7 @@ public class Encoder implements Runnable {
 				recorder.setFrameRate(frameRate);	// FPS 설정
 				recorder.setVideoBitrate(videoBitrate);	// 비트레이트 설정
 				recorder.setPixelFormat(avutil.AV_PIX_FMT_YUV420P);	// H.264 표준 픽셀 포맷
+				recorder.setGopSize(frameRate);		// 네트워크 불안정 시 복구 속도 증가 설정(I-프레임 간격을 FPS와 동일하게 설정)
 
 				// 코덱별 최적화 옵션 설정
 				if ("libx264".equals(codec)) {
@@ -197,13 +203,17 @@ public class Encoder implements Runnable {
 				TimestampedFrame<BufferedImage> tsFrame = videoFrameQueue.take();
 				Frame videoFrame = converter.convert(tsFrame.getFrame());
 
-				// synchronized 블록으로 recorder 접근을 동기화(쓰레드 동시 접근 제한)
-				synchronized (recorder) {
-					// 타임스탬프 설정 (나노초 -> 마이크로초 변환)
-					recorder.setTimestamp(tsFrame.getTimestamp() / 1000);
-					recorder.record(videoFrame);
-				}
-			} 
+                // recorderLock을 사용하여 recorder 접근 보호(쓰레드 동시 접근 제한)
+                recorderLock.lock();
+                try {
+                    if (this.recorder != null) {
+                        this.recorder.setTimestamp(tsFrame.getTimestamp() / 1000);  // 타임스탬프 설정 (나노초 -> 마이크로초 변환)
+                        this.recorder.record(videoFrame);
+                    }
+                } finally {
+                    recorderLock.unlock();
+                }
+			}
 			catch (Exception e) {
 				if (running) 
 					e.printStackTrace();
@@ -219,23 +229,34 @@ public class Encoder implements Runnable {
 	private void processAudioFrames(FFmpegFrameRecorder recorder) {
 		while (running) {
 			try {
+                // 큐가 너무 많이 쌓이면 오래된 오디오 프레임을 버림.
+                while (audioFrameQueue.size() > throwAudioFrameQueue_SIZE) {
+                    audioFrameQueue.take(); // 오래된 프레임 버리기
+                }
+				
 				// '상자'를 꺼냄
 				TimestampedFrame<Frame> tsFrame = audioFrameQueue.take();
 
-				// synchronized 블록으로 recorder 접근을 동기화(쓰레드 동시 접근 제한)
-				synchronized (recorder) {
-					// 타임스탬프 설정 (나노초 -> 마이크로초 변환)
-					recorder.setTimestamp(tsFrame.getTimestamp() / 1000);
-					recorder.record(tsFrame.getFrame());
+				// recorderLock을 사용하여 recorder 접근 보호(쓰레드 동시 접근 제한)
+				recorderLock.lock();
+				try {
+					if (this.recorder != null) {
+						this.recorder.setTimestamp(tsFrame.getTimestamp() / 1000); // 타임스탬프 설정 (나노초 -> 마이크로초 변환)
+						this.recorder.record(tsFrame.getFrame());
+					}
 				}
-			} catch (Exception e) {
+				finally {
+					recorderLock.unlock();
+				}
+			} 
+			catch (Exception e) {
 				if (running) e.printStackTrace();
 			}
 		}
 	}
 
 	/**
-	 * 비트레이트를 동적으로 변경하는 메소드.(스트리밍 중)
+	 * 스트리밍 중 비트레이트를 동적으로 변경하는 메소드.
 	 * 
 	 * 클라이언트가 자신의 네트워크 상태를 서버에 알려, 서버가 그에 맞게 비트레이트 조절
 	 * @param bitrate 새로운 비트레이트 값(bps 단위)
@@ -253,6 +274,48 @@ public class Encoder implements Runnable {
 	}
 
 
+    /**
+     * 스트리밍 중 해상도를 동적으로 변경하는 메소드.
+     * 
+     * 인코더를 안전하게 중지하고 새로운 설정으로 다시 시작합니다.
+     * @param newWidth 새로운 가로 해상도
+     * @param newHeight 새로운 세로 해상도
+     */
+    public void changeResolution(int newWidth, int newHeight) {
+        // 이미 같은 해상도이면 변경하지 않음
+        if (this.width == newWidth && this.height == newHeight) {
+            return;
+        }
+
+        System.out.println(">> 해상도를 " + newWidth + "x" + newHeight + " (으)로 변경합니다...");
+
+        // Lock을 걸어 다른 스레드가 recorder에 접근하는 것을 막습니다.
+        recorderLock.lock();
+        try {
+            // 1. 기존 레코더 중지 및 리소스 해제
+            if (recorder != null) {
+                recorder.stop();
+                recorder.release();
+            }
+
+            // 2. 새로운 해상도로 멤버 변수 업데이트
+            this.width = newWidth;
+            this.height = newHeight;
+
+            // 3. 새로운 설정으로 레코더 재초기화
+            String outputUrl = "srt://" + clientIp + ":" + port + "?mode=caller";
+            initializeRecorder(outputUrl);
+            System.out.println(">> 해상도 변경 완료.");
+
+        } catch (Exception e) {
+            System.err.println("해상도 변경 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            // Lock을 해제합니다.
+            recorderLock.unlock();
+        }
+    }
+	
 
 	/** 
 	 * 인코더 종료
@@ -272,16 +335,21 @@ public class Encoder implements Runnable {
 			executor.shutdownNow();
 		}
 
+        recorderLock.lock();
 		try {
 			// 레코더 중지 및 리소스 해제
 			if (recorder != null) {
 				recorder.stop();
 				recorder.release();
+                recorder = null; // 참조 제거
 			}
-		} catch (org.bytedeco.javacv.FFmpegFrameRecorder.Exception e) {
-			// recorder.stop()에서 발생하는 예외만 별도로 처리
+		} 
+		catch (org.bytedeco.javacv.FFmpegFrameRecorder.Exception e) {
 			System.err.println("레코더 종료 중 오류 발생: " + e.getMessage());
-		}
+		} 
+		finally {
+            recorderLock.unlock();
+        }
 
 	}
 }
