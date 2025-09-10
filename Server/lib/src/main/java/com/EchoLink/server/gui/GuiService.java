@@ -92,7 +92,7 @@ public class GuiService {
     }
 
     private void showLoginScene() throws IOException {
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/MainView.fxml"));
+    	FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/loginView.fxml"));
         fxmlLoader.setControllerFactory(springContext::getBean);
         Parent root = fxmlLoader.load();
 
