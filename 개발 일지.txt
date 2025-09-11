@@ -113,3 +113,5 @@ synchronize -> lock 변경(Encoder.java)
 
 다음 단계:
 서버 안정 로직 구현(SpringBoot Logger)
+  ㄴ System.out이나 printStackTrace를 사용하는 다른 모든 클래스에도 SLF4J Logger를 적용하면 됩니다.
+  ㄴ 예) logger.error("클라이언트 처리 중 예외 발생 ({})", clientAddress, e);
