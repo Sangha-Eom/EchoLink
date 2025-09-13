@@ -42,19 +42,15 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa") // 데이터베이스 연동
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client") // 소셜 로그인: OAuth 2.0 클라이언트 기능
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")	// 서버에서 HTML 템플릿 엔진
-	
+	implementation("org.springframework.boot:spring-boot-starter-validation")	// Provider (@value 등)
 	
 	// 2. 스트리밍 및 미디어 (JavaCV, FFmpeg)
-    implementation("org.bytedeco:javacv-platform:1.5.9")
-    implementation("org.bytedeco:ffmpeg-platform:5.1.2-1.5.9")	// 비디오 및 오디오의 인코딩/디코딩
-    implementation("org.bytedeco:srt-platform:1.5.3-1.5.9")	// SRT 프로토컬(불안정 네트워크 대비)
-
+    implementation("org.bytedeco:javacv-platform:1.5.9")	// 비디오 및 오디오의 인코딩/디코딩, SRT프로토컬
 
 	// 3. 인증 및 데이터 처리 (JSON Web Token)
     implementation("io.jsonwebtoken:jjwt-api:0.12.5")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
-
 
     // 데이터 교환용 (JSON)
     implementation("org.json:json:20240303")
@@ -83,11 +79,11 @@ dependencies {
 
     // 5. 테스트용 라이브러리
     testImplementation(libs.junit.jupiter)
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
 
 }
+
 
 // Apply a specific Java toolchain to ease working on different environments.
 java {
@@ -99,4 +95,9 @@ java {
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
+}
+
+// commons-logging 중복 방지
+configurations.all {
+    exclude(group = "commons-logging", module = "commons-logging")
 }
