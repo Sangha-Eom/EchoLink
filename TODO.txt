@@ -32,6 +32,9 @@ ServerConfig.java에서 이미 시스템 속성과 환경 변수를 우선적으
 실행 환경에서 ECHOLINK_JWT_SECRET, SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID 와 같은 환경 변수를 설정하여 민감한 정보를 주입합니다.
 
 ~~~~
+8. 서버: GUI 추가 기능
+ㄴ종료 버튼 추가
 
-
+~~
+9. FFmpeg 설치 후 오류 개선
 
