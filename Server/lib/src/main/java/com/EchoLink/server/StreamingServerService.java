@@ -4,6 +4,9 @@ import jakarta.annotation.PreDestroy;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -45,6 +48,8 @@ public class StreamingServerService {
 
     private StreamSessionManager streamSessionManager; // 현재 활성화된 스트리밍 세션을 관리
     
+    private static final Logger logger = LoggerFactory.getLogger(StreamingServerService.class);	// 오류 로그 확인용
+    
     /**
      * 생성자
      * 서버 기본 설정 로드
@@ -65,9 +70,9 @@ public class StreamingServerService {
         new Thread(() -> {
             try {
                 // 1. 데스크톱 앱 인증 및 JWT 획득
-                System.out.println("[EchoLink] 데스크톱 인증을 시작합니다...");
+                logger.info("[EchoLink] 데스크톱 인증을 시작합니다...");
                 this.jwtToken = token;
-                System.out.println("[EchoLink] 인증 성공! JWT를 발급받았습니다.");
+                logger.info("[EchoLink] 인증 성공! JWT를 발급받았습니다.");
 
                 // 2. 인증 성공 후 Heartbeat 스케줄러 시작
                 startHeartbeat();
@@ -76,9 +81,8 @@ public class StreamingServerService {
                 startClientAcceptLoop();
 
             } catch (Exception e) {
-                System.err.println("[EchoLink] 서버 시작 중 치명적인 오류 발생: " + e.getMessage());
-                // 실제 앱에서는 이 부분에서 사용자에게 GUI로 오류를 알려야 합니다.
-                e.printStackTrace();
+            	// TODO: GUI로 사용자에게 오류 알리는 로직 필요
+            	logger.error("[EchoLink] 서버 시작 중 치명적인 오류 발생: " + e.getMessage());
             }
         }).start();
     }
@@ -91,7 +95,7 @@ public class StreamingServerService {
     @PreDestroy
     public void stopServer() {
         running = false;
-        System.out.println("[EchoLink] 서버를 종료합니다...");
+        logger.info("[EchoLink] 서버를 종료합니다...");
         if (heartbeatScheduler != null) {
             heartbeatScheduler.shutdownNow();
         }
@@ -103,53 +107,9 @@ public class StreamingServerService {
                 serverSocket.close();
             } catch (IOException ignored) {}
         }
-        System.out.println("[EchoLink] 모든 서비스가 종료되었습니다.");
+        logger.info("[EchoLink] 모든 서비스가 종료되었습니다.");
     }
     
-    /**
-     * GUI에서 사용자가 선택한 설정으로 스트리밍 세션을 시작합니다.
-     * @param clientIp 연결할 클라이언트 IP
-     * @param resolution "가로x세로" 형태의 해상도 문자열
-     * @param bitrate bps 단위의 비트레이트
-     * @param fps 초당 프레임 수
-     */
-    public void startStreamingSession(String clientIp, String resolution, int bitrate, int fps) {
-        if (streamSessionManager != null) {
-            System.err.println("이미 스트리밍 세션이 진행 중입니다.");
-            return;
-        }
-
-        try {
-            String[] dimensions = resolution.split("x");
-            int width = Integer.parseInt(dimensions[0]);
-            int height = Integer.parseInt(dimensions[1]);
-            
-            // TODO: 실제 클라이언트의 UDP 포트를 받아와야 함. 
-            // 우선 임의의 포트(예: 9999) 사용
-            int clientUdpPort = 9999; 
-
-            // StreamSessionManager를 생성하고 세션을 시작.
-            streamSessionManager = new StreamSessionManager(clientIp, fps, bitrate * 1_000_000, width, height, clientUdpPort); // bps 단위로 변환
-            streamSessionManager.startSession();
-            
-            System.out.println("GUI에 의해 스트리밍 세션이 시작되었습니다: " + clientIp);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            // TODO: GUI에 오류 메시지를 표시하는 로직 추가 필요
-        }
-    }
-
-    /**
-     * 현재 진행 중인 스트리밍 세션을 중지합니다.
-     */
-    public void stopStreamingSession() {
-        if (streamSessionManager != null) {
-            streamSessionManager.stopSession();
-            streamSessionManager = null; // 세션 정리
-            System.out.println("GUI에 의해 스트리밍 세션이 중지되었습니다.");
-        }
-    }
     
     /**
      * 스트리밍 서버 소켓 열고 클라이언트 연결 대기
@@ -163,17 +123,17 @@ public class StreamingServerService {
         serverSocket = new ServerSocket();
         serverSocket.setReuseAddress(true);
         serverSocket.bind(new InetSocketAddress(config.getLoginPort()), config.getServerBacklog());
-        System.out.println("[EchoLink] 스트리밍 서버가 포트 " + config.getLoginPort() + "에서 연결을 기다립니다.");
+        logger.info("[EchoLink] 스트리밍 서버가 포트 " + config.getLoginPort() + "에서 연결을 기다립니다.");
         
         // 스트리밍 쓰레드 시작 -> ClientHandler에게 인계
         while (running) {
             try {
                 Socket client = serverSocket.accept();
-                System.out.println("[EchoLink] 클라이언트 연결됨: " + client.getInetAddress().getHostAddress());
+                logger.info("[EchoLink] 클라이언트 연결됨: " + client.getInetAddress().getHostAddress());
                 clientHandlerPool.submit(new ClientHandler(client, jwtToken, config));
             } catch (IOException e) {
                 if (running) {
-                    System.err.println("클라이언트 연결 수락 중 오류 발생: " + e.getMessage());
+                	logger.error("클라이언트 연결 수락 중 오류 발생: ", e);
                 }
             }
         }
@@ -201,16 +161,16 @@ public class StreamingServerService {
                 client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                       .thenAccept(response -> {
                           if (response.statusCode() != 200) {
-                              System.err.println("[Heartbeat] 상태 업데이트 실패: " + response.statusCode());
+                        	  logger.warn("[Heartbeat] 상태 업데이트 실패: " + response.statusCode());
                           }
                       });
             } catch (Exception e) {
-                System.err.println("[Heartbeat] 오류: " + e.getMessage());
+            	logger.error("[Heartbeat] 오류: ", e);
             }
         };
         // 1분마다 Heartbeat 전송 (서버 부하를 줄이기 위해 폴링 주기보다 길게 설정)
         heartbeatScheduler.scheduleAtFixedRate(heartbeatTask, 0, 1, TimeUnit.MINUTES);
-        System.out.println("[EchoLink] Heartbeat 서비스를 시작합니다.");
+        logger.info("[EchoLink] Heartbeat 서비스를 시작합니다.");
     }
 
 }
