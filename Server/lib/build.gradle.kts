@@ -43,6 +43,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client") // 소셜 로그인: OAuth 2.0 클라이언트 기능
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")	// 서버에서 HTML 템플릿 엔진
 	implementation("org.springframework.boot:spring-boot-starter-validation")	// Provider (@value 등)
+	implementation("org.springframework.boot:spring-boot-starter-websocket")	// P2P 프로토컬
 	
 	// 2. 스트리밍 및 미디어 (JavaCV, FFmpeg)
     implementation("org.bytedeco:javacv-platform:1.5.9")	// 비디오 및 오디오의 인코딩/디코딩, SRT프로토컬
@@ -101,3 +102,4 @@ tasks.named<Test>("test") {
 configurations.all {
     exclude(group = "commons-logging", module = "commons-logging")
 }
+
