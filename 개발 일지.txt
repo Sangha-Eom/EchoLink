@@ -122,3 +122,19 @@ synchronize -> lock 변경(Encoder.java)
 3. FFmpeg 설치 후 오류 개선
 
 4. P2P 프로토컬 도입(Parsec)
+
+~~
+25.09.18
+클라이언트 GUI를 서버 GUI로 변경
+P2P 프로토컬 도입 중 (Ongoing)
+
+
+다음 단계:
+1. GUI 개선
+  1. 모바일 인증 절차 구현(서버 버튼 클릭 -> 인증 세션 열기 -> 모바일 인증 절차 -> 각각 기기 추가)
+  2. 중지 버튼 선택 추가(프로그램 완전 종료/프로그램 창만 종료(백그라운드 실행))
+2. P2P 프로토컬 도입 (Ongoing)
+3. 서버 안정 로직 구현(SpringBoot Logger)
+   System.out이나 printStackTrace를 사용하는 다른 모든 클래스에도 SLF4J Logger를 적용하면 됩니다.
+    예) logger.error("클라이언트 처리 중 예외 발생 ({})", clientAddress, e);
+4. 보완할 사항.txt 참고
