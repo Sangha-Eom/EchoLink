@@ -48,6 +48,12 @@ dependencies {
 	// 2. 스트리밍 및 미디어 (JavaCV, FFmpeg)
     implementation("org.bytedeco:javacv-platform:1.5.9")	// 비디오 및 오디오의 인코딩/디코딩, SRT프로토컬
 
+	// P2P 통신 (WebRTC)
+    implementation("dev.onvoid.webrtc:webrtc-java:2.1.0")
+    implementation("dev.onvoid.webrtc:webrtc-java-native-windows:2.1.0") // Windows용 네이티브 라이브러리
+    implementation("org.java-websocket:Java-WebSocket:1.5.3") // 시그널링 서버 접속용 WebSocket 클라이언트
+    
+
 	// 3. 인증 및 데이터 처리 (JSON Web Token)
     implementation("io.jsonwebtoken:jjwt-api:0.12.5")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
